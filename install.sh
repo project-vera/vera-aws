@@ -1,11 +1,25 @@
 #!/usr/bin/env bash
 set -e
 
+OS="$(uname -s)"
+ENDPOINT="${VERA_ENDPOINT:-http://localhost:5003}"
+
+# --- Check for uv ---
+if ! command -v uv >/dev/null 2>&1; then
+    echo "==> uv not found, installing..."
+    if [ "$OS" = "Darwin" ] || [ "$OS" = "Linux" ]; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        # Ensure uv is in the PATH for the current session
+        export PATH="$HOME/.cargo/bin:$PATH"
+    else
+        echo "!!! uv auto-install only supported on macOS/Linux."
+        echo "    See https://astral.sh/uv/install.sh"
+        exit 1
+    fi
+fi
+
 uv sync
 source .venv/bin/activate
-
-ENDPOINT="${VERA_ENDPOINT:-http://localhost:5003}"
-OS="$(uname -s)"
 
 echo "==> Vera AWS - Installer (endpoint: $ENDPOINT)"
 
@@ -107,9 +121,5 @@ fi
 terraform "\$@"
 TEOF
 chmod +x "$BIN_DIR/terlocal"
-
-echo ""
-echo "==> Done! Add to PATH:"
-echo "    export PATH=\"$BIN_DIR:\$PATH\""
 
 source .venv/bin/activate

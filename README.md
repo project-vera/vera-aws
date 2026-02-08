@@ -1,6 +1,7 @@
 # Vera AWS
 
-Local AWS EC2 emulator. 89 resource types — VPCs, instances, security groups, volumes, and more — running on your machine with no AWS account needed.
+Local AWS EC2 emulator. 
+Version 0.1 : 89 resource types — VPCs, instances, security groups, volumes, and more (complete list at the end) — running on your machine with no AWS account needed.
 
 ## Setup
 
@@ -115,3 +116,97 @@ tests/
 ├── eval_emulator.py           Evaluator with checkpointing
 └── tf/                        Terraform test cases
 ```
+
+## Supported Resources
+
+Vera AWS supports the following resources (via EC2 API):
+
+- Account Attributes
+- AFIs
+- AMIs
+- Authorization Rules
+- AWS Marketplace
+- Block Public Access
+- Bundle Tasks
+- BYOASN
+- BYOIP
+- Capacity Reservations
+- Carrier Gateways
+- Certificate Revocation Lists
+- Client Connections
+- Client VPN Endpoints
+- Configuration Files
+- Customer Gateways
+- Customer Owned IP Addresses
+- Declarative Policies (Account Status Report)
+- Dedicated Hosts
+- DHCP Options
+- EC2 Fleet
+- EC2 Instance Connect Endpoints
+- EC2 Topology
+- Elastic Graphics
+- Elastic IP Addresses
+- Elastic Network Interfaces
+- Encryption
+- Event Notifications
+- Event Windows For Scheduled Events
+- Fast Snapshot Restores
+- Infrastructure Performance
+- Instance Types
+- Instances
+- Internet Gateways
+- IPAMs
+- Key Pairs
+- Launch Templates
+- Link Aggregation Groups
+- Local Gateways
+- Managed Prefix Lists
+- NAT Gateways
+- Network Access Analyzer
+- Network ACLs
+- Nitro TPM
+- Placement Groups
+- Pools
+- Reachability Analyzer
+- Regions And Zones
+- Reserved Instances
+- Resource Discoveries
+- Resource IDs
+- Route Servers
+- Route Tables
+- Routes
+- Scheduled Instances
+- Scopes
+- Security Groups
+- Serial Console
+- Service Links
+- Snapshots
+- Spot Fleet
+- Spot Instances
+- Subnets
+- Tags
+- Target Networks
+- Traffic Mirroring
+- Transit Gateway Connect
+- Transit Gateway Multicast
+- Transit Gateway Peering Attachments
+- Transit Gateway Policy Tables
+- Transit Gateway Route Tables
+- Transit Gateways
+- Verified Access Endpoints
+- Verified Access Groups
+- Verified Access Instances
+- Verified Access Logs
+- Verified Access Trust Providers
+- Virtual Private Gateway Routes
+- Virtual Private Gateways
+- VM Export
+- VM Import
+- Volumes
+- VPC Endpoint Services
+- VPC Endpoints
+- VPC Flow Logs
+- VPC Peering
+- VPCs
+- VPN Concentrators
+- VPN Connections
