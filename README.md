@@ -3,6 +3,8 @@
 Local AWS EC2 emulator. 
 Version 0.1 : 89 resource types — VPCs, instances, security groups, volumes, and more (complete list at the end) — running on your machine with no AWS account needed.
 
+Check out the [Vera website](https://project-vera.github.io/) for more information.
+
 ## Setup
 
 ```bash
