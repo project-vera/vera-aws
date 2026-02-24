@@ -1,0 +1,2 @@
+[console_scripts]
+vera-aws = main:main

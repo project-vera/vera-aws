@@ -16,6 +16,10 @@ Vera runs the cloud on your laptop. It mimics the APIs of Amazon Web Services an
 
 ## Why Vera?
 
+<p align="center">
+  <img src="assets/logo2.png" alt="Why Vera" width="80%">
+</p>
+
 **No account needed.** Vera ships with fake credentials built in. You never authenticate against a real cloud provider, which means there's nothing to sign up for, nothing to configure, and no risk of accidentally hitting production.
 
 **Fast feedback.** Because requests never leave your machine, operations that would take seconds or minutes against a real cloud complete instantly. Iterating on infrastructure code becomes as fast as iterating on any other code.
