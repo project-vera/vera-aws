@@ -1,0 +1,11 @@
+**To describe CoIP pools**
+
+The following ``describe-coip-pools`` example describes the customer-owned IP address pools in your account. ::
+
+    aws ec2 describe-coip-pools
+
+Output::
+
+    {
+        "CoipPools": []
+    }
