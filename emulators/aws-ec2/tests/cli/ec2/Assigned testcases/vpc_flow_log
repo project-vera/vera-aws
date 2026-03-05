@@ -1,20 +1,35 @@
-**To create a flow log for a VPC**
+**To create a network ACL**
 
-The following ``create-flow-logs`` example creates a flow log that captures all traffic for the specified VPC. ::
+The following ``create-network-acl`` example creates a network ACL for the specified VPC. ::
 
-    aws ec2 create-flow-logs \
-        --resource-type VPC \
-        --resource-ids vpc-0a60eb65b4EXAMPLE \
-        --traffic-type ALL \
-        --log-destination-type cloud-watch-logs \
-        --log-group-name my-flow-logs
+    aws ec2 create-network-acl \
+        --vpc-id vpc-0a60eb65b4EXAMPLE
 
 Output::
 
     {
-        "ClientToken": "",
-        "FlowLogIds": [
-            "fl-0abcdef1234567890"
-        ],
-        "Unsuccessful": []
+        "NetworkAcl": {
+            "Associations": [],
+            "Entries": [
+                {
+                    "CidrBlock": "0.0.0.0/0",
+                    "Egress": true,
+                    "Protocol": "all",
+                    "RuleAction": "deny",
+                    "RuleNumber": 32767
+                },
+                {
+                    "CidrBlock": "0.0.0.0/0",
+                    "Egress": false,
+                    "Protocol": "all",
+                    "RuleAction": "deny",
+                    "RuleNumber": 32767
+                }
+            ],
+            "IsDefault": false,
+            "Tags": [],
+            "VpcId": "vpc-0a60eb65b4EXAMPLE",
+            "OwnerId": "123456789012",
+            "NetworkAclId": "acl-0abcdef1234567890"
+        }
     }
