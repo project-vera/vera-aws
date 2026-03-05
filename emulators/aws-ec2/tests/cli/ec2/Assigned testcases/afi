@@ -1,11 +1,19 @@
-**To describe FPGA images**
+**To create a placement group**
 
-The following ``describe-fpga-images`` example describes all FPGA images in your account. ::
+The following ``create-placement-group`` example creates a placement group with the specified name and strategy. ::
 
-    aws ec2 describe-fpga-images
+    aws ec2 create-placement-group \
+        --group-name my-cluster \
+        --strategy cluster
 
 Output::
 
     {
-        "FpgaImages": []
+        "PlacementGroup": {
+            "GroupName": "my-cluster",
+            "State": "available",
+            "Strategy": "cluster",
+            "GroupId": "pg-0abcdef1234567890",
+            "Tags": []
+        }
     }
