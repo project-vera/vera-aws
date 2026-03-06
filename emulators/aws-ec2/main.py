@@ -235,4 +235,6 @@ def handle_request():
 if __name__ == "__main__":
     logger.info("Starting EC2 Emulator...")
     load_resources("emulator_core")
-    app.run(port=5003, debug=True)
+    host = os.environ.get("VERA_HOST", "127.0.0.1")
+    port = int(os.environ.get("VERA_PORT", "5003"))
+    app.run(host=host, port=port, debug=True)

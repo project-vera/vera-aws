@@ -1,0 +1,25 @@
+services:
+  vera:
+    build:
+      context: emulators/aws-ec2
+    ports:
+      - "5003:5003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',5003),timeout=2); s.close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  vera-gcp:
+    build:
+      context: emulators/google-compute
+    ports:
+      - "9100:9100"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:9100')"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+

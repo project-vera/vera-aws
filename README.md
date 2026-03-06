@@ -50,6 +50,27 @@ Vera runs the cloud on your laptop. It mimics the APIs of Amazon Web Services an
 
 ## Quick Start
 
+### Docker
+
+```bash
+docker compose up -d
+source ./vera-env.sh
+
+aws ec2 create-vpc --cidr-block 10.0.0.0/16
+gcloud compute instances list --project=vera-project
+```
+
+`vera-env.sh` configures your terminal to route standard CLI commands to the local emulators. Re-run it in each new terminal session.
+
+To start only one cloud:
+
+```bash
+docker compose up -d vera      # AWS only
+docker compose up -d vera-gcp  # GCP only
+```
+
+### Local setup
+
 Each emulator lives in its own directory under `emulators/`. Setup is a single command:
 
 ```bash
@@ -62,36 +83,19 @@ cd emulators/google-compute
 ./install.sh
 ```
 
-From there, use `awscli`, `terlocal`, or `gcpcli` exactly as you would their real counterparts. See the individual READMEs for usage examples, test suites, and the full list of supported resources.
-
-## Testing a CLI command
-
-After finishing the setup, start the emulator. 
+Then start the emulator and test it in another terminal:
 
 ```bash
+# terminal 1
 cd emulators/aws-ec2
-
 uv run main.py
-```
 
-Test your CLI commands in another terminal. 
-
-```bash
+# terminal 2
 cd emulators/aws-ec2
-
 uv run awscli ec2 create-vpc --cidr-block 10.0.0.0/16
 ```
 
-A response will be generated.
-```json
-{
-    "Vpc": {
-        "OwnerId": "",
-        "InstanceTenancy": "default",
-        ...
-    }
-}
-```
+See the individual READMEs for usage examples, test suites, and the full list of supported resources.
 
 
 ## Vera Emulators
