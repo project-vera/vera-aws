@@ -1,6 +1,6 @@
-**To create a Verified Access endpoint**
+**Example 1: To create a network interface Verified Access endpoint**
 
-The following ``create-verified-access-endpoint`` example creates a Verified Access endpoint for the speciied Verified Access group. The specified network interface and security group must belong to the same VPC. ::
+The following ``create-verified-access-endpoint`` example creates a Verified Access endpoint backed by a network interface. The specified network interface and security group must belong to the same VPC. ::
 
     aws ec2 create-verified-access-endpoint \
         --verified-access-group-id vagr-0dbe967baf14b7235 \
@@ -45,6 +45,55 @@ Output::
                     "Value": "my-va-endpoint"
                 }
             ]
+        }
+    }
+
+For more information, see `Verified Access endpoints <https://docs.aws.amazon.com/verified-access/latest/ug/verified-access-endpoints.html>`__ in the *AWS Verified Access User Guide*.
+
+**Example 2: To create a load balancer Verified Access endpoint**
+
+The following ``create-verified-access-endpoint`` example creates a Verified Access endpoint backed by an Application Load Balancer. Use ``--load-balancer-options`` instead of ``--network-interface-options``, and specify the ALB ARN and the subnets it should use. The output contains ``LoadBalancerOptions`` instead of ``NetworkInterfaceOptions``. ::
+
+    aws ec2 create-verified-access-endpoint \
+        --verified-access-group-id vagr-0dbe967baf14b7235 \
+        --endpoint-type load-balancer \
+        --attachment-type vpc \
+        --domain-certificate-arn arn:aws:acm:us-east-2:123456789012:certificate/eb065ea0-26f9-4e75-a6ce-0a1a7EXAMPLE \
+        --application-domain example.com \
+        --endpoint-domain-prefix my-ava-lb-app \
+        --security-group-ids sg-004915970c4c8f13a \
+        --load-balancer-options LoadBalancerArn=arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/my-alb/1234567890abcdef,Port=443,Protocol=https,SubnetIds=subnet-0571ef42726EXAMPLE
+
+Output::
+
+    {
+        "VerifiedAccessEndpoint": {
+            "VerifiedAccessInstanceId": "vai-0ce000c0b7643abea",
+            "VerifiedAccessGroupId": "vagr-0dbe967baf14b7235",
+            "VerifiedAccessEndpointId": "vae-0b2c5f9a3dEXAMPLE",
+            "ApplicationDomain": "example.com",
+            "EndpointType": "load-balancer",
+            "AttachmentType": "vpc",
+            "DomainCertificateArn": "arn:aws:acm:us-east-2:123456789012:certificate/eb065ea0-26f9-4e75-a6ce-0a1a7EXAMPLE",
+            "EndpointDomain": "my-ava-lb-app.edge-00c3372d53b1540bb.vai-0ce000c0b7643abea.prod.verified-access.us-east-2.amazonaws.com",
+            "SecurityGroupIds": [
+                "sg-004915970c4c8f13a"
+            ],
+            "LoadBalancerOptions": {
+                "LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-2:123456789012:loadbalancer/app/my-alb/1234567890abcdef",
+                "Port": 443,
+                "Protocol": "https",
+                "SubnetIds": [
+                    "subnet-0571ef42726EXAMPLE"
+                ]
+            },
+            "Status": {
+                "Code": "pending"
+            },
+            "Description": "",
+            "CreationTime": "2023-08-25T20:54:43",
+            "LastUpdatedTime": "2023-08-25T20:54:43",
+            "Tags": []
         }
     }
 
