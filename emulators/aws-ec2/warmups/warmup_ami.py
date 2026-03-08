@@ -2,6 +2,9 @@
 """
 Parse amis.json (EC2 describe-images style) and run awscli ec2 register-image
 for each AMI. Use -o/--output to write commands to a file instead of running.
+
+To get the all the current AMIs, run:
+aws ec2 describe-images --output json > amis.json
 """
 
 import argparse
@@ -90,8 +93,8 @@ def main() -> int:
         "input",
         nargs="?",
         type=Path,
-        default=Path(__file__).resolve().parent / "amis.json",
-        help="Path to amis.json (default: warmups/amis.json)",
+        default=Path(__file__).resolve().parent / "amis_100.json",
+        help="Path to amis_100.json (default: warmups/amis_100.json)",
     )
     parser.add_argument(
         "-o", "--output",
