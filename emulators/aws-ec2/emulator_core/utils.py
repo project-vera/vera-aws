@@ -45,6 +45,26 @@ def get_scalar(params: RequestParams, key: str, default: Optional[str] = None) -
         return val[0] if val else default
     return val if val is not None else default
 
+def get_nested_dict(params: RequestParams, prefix: str) -> Dict[str, Any]:
+    """
+    Collect all dot-notation nested parameters into a dict.
+    E.g., for prefix='LaunchTemplateData', collects LaunchTemplateData.InstanceType,
+    LaunchTemplateData.ImageId, etc. into {'InstanceType': ..., 'ImageId': ...}.
+    """
+    result: Dict[str, Any] = {}
+    prefix_dot = prefix + "."
+    keys = params.keys() if hasattr(params, 'keys') else params.keys()
+    for key in keys:
+        if key.startswith(prefix_dot):
+            sub_key = key[len(prefix_dot):]
+            if sub_key:
+                val = params.getlist(key) if hasattr(params, 'getlist') else params.get(key)
+                if isinstance(val, list):
+                    result[sub_key] = val[0] if len(val) == 1 else val
+                else:
+                    result[sub_key] = val
+    return result
+
 def get_indexed_list(params: RequestParams, base: str) -> List[str]:
     """
     Extract a list of indexed parameters (e.g., InstanceId.1, InstanceId.2, ...).
