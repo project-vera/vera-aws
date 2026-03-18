@@ -2,7 +2,7 @@ name: Publish Docker Images
 
 on:
   push:
-    branches: [main]
+    branches: [main, feat/github_action_integration]
     paths:
       - 'emulators/aws-ec2/**'
       - 'emulators/google-compute/**'
