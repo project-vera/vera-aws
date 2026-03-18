@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set lowercase owner
+        run: echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Log in to ghcr.io
         uses: docker/login-action@v3
         with:
@@ -33,8 +36,8 @@ jobs:
           context: emulators/aws-ec2
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner | lower }}/vera/vera-aws:latest
-            ghcr.io/${{ github.repository_owner | lower }}/vera/vera-aws:${{ github.sha }}
+            ghcr.io/${{ env.OWNER }}/vera/vera-aws:latest
+            ghcr.io/${{ env.OWNER }}/vera/vera-aws:${{ github.sha }}
 
       - name: Build and push vera-gcp
         uses: docker/build-push-action@v6
@@ -42,5 +45,5 @@ jobs:
           context: emulators/google-compute
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner | lower }}/vera/vera-gcp:latest
-            ghcr.io/${{ github.repository_owner | lower }}/vera/vera-gcp:${{ github.sha }}
+            ghcr.io/${{ env.OWNER }}/vera/vera-gcp:latest
+            ghcr.io/${{ env.OWNER }}/vera/vera-gcp:${{ github.sha }}
