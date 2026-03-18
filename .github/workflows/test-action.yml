@@ -1,0 +1,81 @@
+name: Test vera-setup Action
+
+on:
+  push:
+    branches: [main, feat/github_action_integration]
+    paths:
+      - '.github/actions/vera-setup/**'
+      - '.github/workflows/test-action.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-both-emulators:
+    name: Test — AWS + GCP
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Vera emulators
+        uses: ./.github/actions/vera-setup
+
+      - name: Verify env vars are exported
+        run: |
+          echo "AWS_ENDPOINT_URL=$AWS_ENDPOINT_URL"
+          echo "AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION"
+          echo "CLOUDSDK_API_ENDPOINT_OVERRIDES_COMPUTE=$CLOUDSDK_API_ENDPOINT_OVERRIDES_COMPUTE"
+          echo "CLOUDSDK_CORE_PROJECT=$CLOUDSDK_CORE_PROJECT"
+          echo "CLOUDSDK_AUTH_DISABLE_CREDENTIALS=$CLOUDSDK_AUTH_DISABLE_CREDENTIALS"
+          [ "$AWS_ENDPOINT_URL" = "http://localhost:5003" ]       || (echo "FAIL: AWS_ENDPOINT_URL" && exit 1)
+          [ "$AWS_DEFAULT_REGION" = "us-east-1" ]                 || (echo "FAIL: AWS_DEFAULT_REGION" && exit 1)
+          [ "$CLOUDSDK_AUTH_DISABLE_CREDENTIALS" = "true" ]       || (echo "FAIL: CLOUDSDK_AUTH_DISABLE_CREDENTIALS" && exit 1)
+          [ "$CLOUDSDK_CORE_PROJECT" = "vera-project" ]           || (echo "FAIL: CLOUDSDK_CORE_PROJECT" && exit 1)
+          echo "All env vars OK"
+
+      - name: Install AWS CLI
+        run: pip install awscli --quiet
+
+      - name: Test AWS CLI
+        run: |
+          aws ec2 describe-instances
+          aws ec2 describe-vpcs
+
+      - name: Test GCP CLI
+        run: |
+          # Create isolated gcloud config and token file (mirrors gcpcli wrapper from install.sh)
+          mkdir -p /tmp/vera-gcloud-config
+          echo "vera-local-token" > /tmp/vera-gcloud-config/access_token
+
+          gcloud compute instances list \
+            --project=vera-project \
+            --access-token-file=/tmp/vera-gcloud-config/access_token
+          gcloud compute networks list \
+            --project=vera-project \
+            --access-token-file=/tmp/vera-gcloud-config/access_token
+        env:
+          CLOUDSDK_CONFIG: /tmp/vera-gcloud-config
+
+  test-aws-only:
+    name: Test — AWS only (start-gcp false)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start AWS emulator only
+        uses: ./.github/actions/vera-setup
+        with:
+          start-gcp: 'false'
+
+      - name: Verify only AWS container is running
+        run: |
+          docker ps --format '{{.Names}}'
+          docker ps --format '{{.Names}}' | grep -q vera-aws || (echo "FAIL: vera-aws not running" && exit 1)
+          docker ps --format '{{.Names}}' | grep -q vera-gcp && (echo "FAIL: vera-gcp should not be running" && exit 1) || true
+          echo "Container check passed"
+
+      - name: Install AWS CLI
+        run: pip install awscli --quiet
+
+      - name: Test AWS CLI works
+        run: aws ec2 describe-instances

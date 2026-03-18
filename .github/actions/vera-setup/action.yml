@@ -1,0 +1,102 @@
+name: 'Vera Emulator Setup'
+description: 'Start Vera cloud emulators (AWS EC2 + GCP Compute) and configure environment for CI/CD testing'
+branding:
+  icon: 'server'
+  color: 'blue'
+
+inputs:
+  start-aws:
+    description: 'Whether to start the AWS EC2 emulator'
+    default: 'true'
+  start-gcp:
+    description: 'Whether to start the GCP Compute emulator'
+    default: 'true'
+  aws-endpoint:
+    description: 'AWS emulator URL'
+    default: 'http://localhost:5003'
+  gcp-endpoint:
+    description: 'GCP emulator URL'
+    default: 'http://localhost:9100'
+  aws-region:
+    description: 'AWS default region'
+    default: 'us-east-1'
+  gcp-project:
+    description: 'GCP project ID'
+    default: 'vera-project'
+  wait-timeout:
+    description: 'Seconds to wait for emulators to become healthy'
+    default: '60'
+
+outputs:
+  aws-endpoint:
+    description: 'AWS emulator endpoint URL'
+    value: ${{ inputs.aws-endpoint }}
+  gcp-endpoint:
+    description: 'GCP emulator endpoint URL'
+    value: ${{ inputs.gcp-endpoint }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Start emulators
+      shell: bash
+      run: |
+        SERVICES=""
+        [ "${{ inputs.start-aws }}" = "true" ] && SERVICES="$SERVICES vera-aws"
+        [ "${{ inputs.start-gcp }}" = "true" ] && SERVICES="$SERVICES vera-gcp"
+        docker compose \
+          -f "${GITHUB_WORKSPACE}/docker-compose.yml" \
+          --project-directory "${GITHUB_WORKSPACE}" \
+          up --build --detach $SERVICES
+
+    - name: Wait for AWS emulator
+      if: ${{ inputs.start-aws == 'true' }}
+      shell: bash
+      run: |
+        TIMEOUT=${{ inputs.wait-timeout }}
+        ELAPSED=0
+        echo "Waiting for AWS emulator at ${{ inputs.aws-endpoint }} (timeout: ${TIMEOUT}s)..."
+        until curl -sf "${{ inputs.aws-endpoint }}" > /dev/null 2>&1; do
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "Timed out waiting for AWS emulator after ${TIMEOUT}s"
+            echo "=== vera-aws logs ==="
+            docker compose -f "${GITHUB_WORKSPACE}/docker-compose.yml" --project-directory "${GITHUB_WORKSPACE}" logs vera-aws
+            exit 1
+          fi
+          sleep 1
+          ELAPSED=$((ELAPSED + 1))
+        done
+        echo "AWS emulator is ready (${ELAPSED}s)"
+
+    - name: Wait for GCP emulator
+      if: ${{ inputs.start-gcp == 'true' }}
+      shell: bash
+      run: |
+        TIMEOUT=${{ inputs.wait-timeout }}
+        ELAPSED=0
+        echo "Waiting for GCP emulator at ${{ inputs.gcp-endpoint }} (timeout: ${TIMEOUT}s)..."
+        until curl -sf "${{ inputs.gcp-endpoint }}" > /dev/null 2>&1; do
+          if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+            echo "Timed out waiting for GCP emulator after ${TIMEOUT}s"
+            echo "=== vera-gcp logs ==="
+            docker compose -f "${GITHUB_WORKSPACE}/docker-compose.yml" --project-directory "${GITHUB_WORKSPACE}" logs vera-gcp
+            exit 1
+          fi
+          sleep 1
+          ELAPSED=$((ELAPSED + 1))
+        done
+        echo "GCP emulator is ready (${ELAPSED}s)"
+
+    - name: Export environment variables
+      shell: bash
+      run: |
+        {
+          echo "AWS_ENDPOINT_URL=${{ inputs.aws-endpoint }}"
+          echo "AWS_ACCESS_KEY_ID=test"
+          echo "AWS_SECRET_ACCESS_KEY=test"
+          echo "AWS_DEFAULT_REGION=${{ inputs.aws-region }}"
+          echo "CLOUDSDK_API_ENDPOINT_OVERRIDES_COMPUTE=${{ inputs.gcp-endpoint }}/"
+          echo "CLOUDSDK_CORE_PROJECT=${{ inputs.gcp-project }}"
+          echo "CLOUDSDK_AUTH_DISABLE_CREDENTIALS=true"
+          echo "GOOGLE_OAUTH_ACCESS_TOKEN=vera-local-token"
+        } >> "$GITHUB_ENV"
