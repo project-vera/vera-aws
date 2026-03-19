@@ -56,6 +56,12 @@ jobs:
         env:
           CLOUDSDK_CONFIG: /tmp/vera-gcloud-config
 
+      - name: Cleanup emulators
+        if: always()
+        run: |
+          docker rm -f vera-aws 2>/dev/null || true
+          docker rm -f vera-gcp 2>/dev/null || true
+
   test-aws-only:
     name: Test — AWS only (start-gcp false)
     runs-on: ubuntu-latest
@@ -79,3 +85,9 @@ jobs:
 
       - name: Test AWS CLI works
         run: aws ec2 describe-instances
+
+      - name: Cleanup emulators
+        if: always()
+        run: |
+          docker rm -f vera-aws 2>/dev/null || true
+          docker rm -f vera-gcp 2>/dev/null || true

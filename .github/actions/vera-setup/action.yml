@@ -42,11 +42,13 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.start-aws }}" = "true" ]; then
+          docker rm -f vera-aws 2>/dev/null || true
           docker run -d --name vera-aws \
             -p 5003:5003 \
             ghcr.io/zhuochenghe/vera/vera-aws:latest
         fi
         if [ "${{ inputs.start-gcp }}" = "true" ]; then
+          docker rm -f vera-gcp 2>/dev/null || true
           docker run -d --name vera-gcp \
             -p 9100:9100 \
             ghcr.io/zhuochenghe/vera/vera-gcp:latest
@@ -98,8 +100,9 @@ runs:
           echo "AWS_ACCESS_KEY_ID=test"
           echo "AWS_SECRET_ACCESS_KEY=test"
           echo "AWS_DEFAULT_REGION=${{ inputs.aws-region }}"
-          echo "CLOUDSDK_API_ENDPOINT_OVERRIDES_COMPUTE=${{ inputs.gcp-endpoint }}/"
+          echo "CLOUDSDK_API_ENDPOINT_OVERRIDES_COMPUTE=${{ inputs.gcp-endpoint }}"
           echo "CLOUDSDK_CORE_PROJECT=${{ inputs.gcp-project }}"
           echo "CLOUDSDK_AUTH_DISABLE_CREDENTIALS=true"
           echo "GOOGLE_OAUTH_ACCESS_TOKEN=vera-local-token"
         } >> "$GITHUB_ENV"
+
