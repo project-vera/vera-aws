@@ -36,18 +36,9 @@ jobs:
 
       - name: Test GCP CLI
         run: |
-          # Create isolated gcloud config and token file (mirrors gcpcli wrapper from install.sh)
-          mkdir -p /tmp/vera-gcloud-config
-          echo "vera-local-token" > /tmp/vera-gcloud-config/access_token
-
-          gcloud compute instances list \
-            --project=vera-project \
-            --access-token-file=/tmp/vera-gcloud-config/access_token
-          gcloud compute networks list \
-            --project=vera-project \
-            --access-token-file=/tmp/vera-gcloud-config/access_token
-        env:
-          CLOUDSDK_CONFIG: /tmp/vera-gcloud-config
+          echo "vera-local-token" > /tmp/vera_token.txt
+          gcloud compute instances list --access-token-file=/tmp/vera_token.txt
+          gcloud compute networks list --access-token-file=/tmp/vera_token.txt
 
       - name: Cleanup emulators
         if: always()
