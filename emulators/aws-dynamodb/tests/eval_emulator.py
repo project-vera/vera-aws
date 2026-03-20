@@ -31,6 +31,7 @@ DYNAMIC_KEYS = {
     "TableId",
     "IndexArn",
     "LatestStreamArn",
+    "KMSMasterKeyArn",         # contains account ID and region, differs from real AWS
     "LatestStreamLabel",
     "LastIncreaseDateTime",
     "LastDecreaseDateTime",
@@ -206,7 +207,15 @@ def reset_emulator(endpoint_url):
         try:
             ddb_request("DeleteTable", {"TableName": name})
         except Exception:
-            pass
+            # Table may have deletion protection enabled; disable it first.
+            try:
+                ddb_request("UpdateTable", {
+                    "TableName": name,
+                    "DeletionProtectionEnabled": False,
+                })
+                ddb_request("DeleteTable", {"TableName": name})
+            except Exception:
+                pass
 
     if table_names:
         print(f"  Reset: deleted {len(table_names)} table(s): {', '.join(table_names)}")
@@ -222,8 +231,8 @@ def save_checkpoint(results, checkpoint_file):
 def load_commands(cli_dir: Path):
     """
     Parse RST files and return list of (cmd_str, expected_output, reset_before) tuples.
-    reset_before=True marks the first command of each RST file — the emulator is reset
-    before running it, so each file starts from a clean slate.
+    reset_before=True marks the first command of each Example block — the emulator is
+    reset before running it, so each Example starts from a clean slate.
     Commands requiring IDs or file:// parameters are skipped.
     """
     data = parse_aws_commands_from_directory(cli_dir, quiet=True)
@@ -233,11 +242,15 @@ def load_commands(cli_dir: Path):
             entry for entry in cmd_list
             if not entry["use_id"] and not entry["use_file"]
         ]
-        for i, entry in enumerate(file_commands):
+        seen_examples = set()
+        for entry in file_commands:
+            example_idx = entry.get("example_index", 0)
+            is_first_in_example = example_idx not in seen_examples
+            seen_examples.add(example_idx)
             commands.append((
                 to_awscli_command(entry["cmd"]),
                 entry.get("output", ""),
-                i == 0,  # reset_before: True only for the first command of each file
+                is_first_in_example,  # reset_before: True for first command of each Example
             ))
     return commands
 

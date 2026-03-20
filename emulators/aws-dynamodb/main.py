@@ -121,6 +121,33 @@ def sync_from_dynamodb_local() -> None:
 # Table action handlers
 # ------------------------------------------------------------------
 
+def _augment_create_table_response(resp_body: dict, request_body: dict) -> dict:
+    """
+    Inject fields that DynamoDB Local omits but real DynamoDB returns.
+    Mutates and returns resp_body.
+    """
+    desc = resp_body.get("TableDescription", {})
+
+    # SSEDescription: DynamoDB Local accepts --sse-specification but doesn't echo it back.
+    sse_spec = request_body.get("SSESpecification", {})
+    if sse_spec.get("Enabled") and "SSEDescription" not in desc:
+        sse_entry = {"Status": "ENABLED", "SSEType": sse_spec.get("SSEType", "AES256")}
+        key_id = sse_spec.get("KMSMasterKeyId")
+        if key_id and not key_id.startswith("arn:"):
+            key_id = f"arn:aws:kms:us-east-1:000000000000:key/{key_id}"
+        if key_id:
+            sse_entry["KMSMasterKeyArn"] = key_id
+        desc["SSEDescription"] = sse_entry
+
+    # TableClassSummary: DynamoDB Local accepts --table-class but doesn't echo it back.
+    table_class = request_body.get("TableClass")
+    if table_class and "TableClassSummary" not in desc:
+        desc["TableClassSummary"] = {"TableClass": table_class}
+
+    resp_body["TableDescription"] = desc
+    return resp_body
+
+
 def handle_create_table(body: dict, raw_body: bytes) -> Response:
     table_name = body.get("TableName")
     if not table_name:
@@ -136,6 +163,12 @@ def handle_create_table(body: dict, raw_body: bytes) -> Response:
 
     if resp.status_code == 200:
         sm.transition(table_name, "ACTIVE")
+        try:
+            resp_body = json.loads(resp.get_data())
+            resp_body = _augment_create_table_response(resp_body, body)
+            return Response(json.dumps(resp_body), status=200, mimetype="application/x-amz-json-1.0")
+        except Exception:
+            pass
     else:
         sm.remove(table_name)
 

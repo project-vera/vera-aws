@@ -74,16 +74,24 @@ def extract_output(lines, start_idx):
 def parse_aws_commands(file_path):
     """Parse AWS CLI commands from an RST file with their outputs."""
     commands = []
-    
+
     with open(file_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    
+
+    current_example = 0  # increments each time we see **Example N:** header
     i = 0
     while i < len(lines):
         line = lines[i]
-        
+
+        # Track Example boundaries (e.g. "**Example 1: ...**")
+        stripped_line = line.strip()
+        if stripped_line.startswith('**Example') and stripped_line.endswith('**'):
+            current_example += 1
+            i += 1
+            continue
+
         # Look for lines that contain 'aws' command
-        stripped = line.strip()
+        stripped = stripped_line
         if stripped.startswith('aws '):
             # Found an AWS command, now collect all continuation lines
             command_lines = [stripped]
@@ -119,7 +127,8 @@ def parse_aws_commands(file_path):
                 "cmd": full_command,
                 "use_id": use_id,
                 "use_file": use_file,
-                "output": output
+                "output": output,
+                "example_index": current_example,
             })
             
             # Move index past the command we just processed
