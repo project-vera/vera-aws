@@ -2,7 +2,8 @@ name: Publish Docker Images
 
 on:
   push:
-    branches: [main, feat/github_action_integration]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
@@ -44,8 +45,8 @@ jobs:
           images: ghcr.io/${{ env.OWNER }}/vera/${{ matrix.name }}
           tags: |
             type=raw,value=latest
-            type=sha
-            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
 
       - name: Build and push
         uses: docker/build-push-action@v6
