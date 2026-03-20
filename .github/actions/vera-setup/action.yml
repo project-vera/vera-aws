@@ -100,7 +100,7 @@ runs:
           echo "AWS_ACCESS_KEY_ID=test"
           echo "AWS_SECRET_ACCESS_KEY=test"
           echo "AWS_DEFAULT_REGION=${{ inputs.aws-region }}"
-          echo "CLOUDSDK_API_ENDPOINT_OVERRIDES_COMPUTE=${{ inputs.gcp-endpoint }}"
+          echo "CLOUDSDK_API_ENDPOINT_OVERRIDES_COMPUTE=${{ inputs.gcp-endpoint }}/"
           echo "CLOUDSDK_CORE_PROJECT=${{ inputs.gcp-project }}"
           echo "CLOUDSDK_AUTH_DISABLE_CREDENTIALS=true"
           echo "GOOGLE_OAUTH_ACCESS_TOKEN=vera-local-token"
