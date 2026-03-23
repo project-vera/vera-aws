@@ -1,6 +1,12 @@
 # Configure the AWS provider (endpoint set by terlocal when running against Vera)
 provider "aws" {
   region = "us-east-1"
+
+  access_key                  = "test"
+  secret_key                  = "test"
+  skip_credentials_validation = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
 }
 
 # VPC and subnet for the instance
