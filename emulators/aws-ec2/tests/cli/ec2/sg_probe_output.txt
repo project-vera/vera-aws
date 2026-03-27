@@ -1,0 +1,55 @@
+== create vpc ==
+VPC_ID=vpc-c0ec0d5143414152a
+
+== create security group ==
+SG_ID=sg-de7f70a7aa134297b
+
+== probe 1: simple ingress args ==
+
+An error occurred (MissingParameter) when calling the AuthorizeSecurityGroupIngress operation: Missing required parameter: IpPermissions
+probe 1 exit code: 255
+
+== describe security groups after probe 1 ==
+
+== probe 2: shorthand ip-permissions ingress ==
+
+An error occurred (MissingParameter) when calling the AuthorizeSecurityGroupIngress operation: Missing required parameter: IpPermissions
+probe 2 exit code: 255
+
+== describe security groups after probe 2 ==
+
+== write ip_permissions.json ==
+[
+  {
+    "IpProtocol": "tcp",
+    "FromPort": 22,
+    "ToPort": 22,
+    "IpRanges": [
+      {
+        "CidrIp": "0.0.0.0/0"
+      }
+    ]
+  }
+]
+
+== probe 3: file:// ip-permissions ingress ==
+
+An error occurred (MissingParameter) when calling the AuthorizeSecurityGroupIngress operation: Missing required parameter: IpPermissions
+probe 3 exit code: 255
+
+== describe security groups after probe 3 ==
+
+== probe 4: shorthand ip-permissions egress ==
+
+An error occurred (MissingParameter) when calling the AuthorizeSecurityGroupEgress operation: Missing required parameter: IpPermissions
+probe 4 exit code: 255
+
+== describe security groups after probe 4 ==
+
+== cleanup ==
+
+An error occurred (DependencyViolation) when calling the DeleteSecurityGroup operation: SecurityGroup has VPC associations and cannot be deleted.
+
+An error occurred (DependencyViolation) when calling the DeleteVpc operation: Vpc has dependent SecurityGroup(s) and cannot be deleted.
+
+done
