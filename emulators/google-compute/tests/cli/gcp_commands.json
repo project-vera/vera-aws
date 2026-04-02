@@ -4,13 +4,13 @@
       "cmd": "gcpcli zones list --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "[]"
+      "output": "[{\"name\": \"us-central1-a\", \"status\": \"UP\", \"id\": \"2000\", \"creationTimestamp\": \"1969-12-31T16:00:00.000-08:00\"}]"
     },
     {
       "cmd": "gcpcli zones describe us-central1-a --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "{\"name\": \"us-central1-a\", \"status\": \"UP\"}"
+      "output": "{\"name\": \"us-central1-a\", \"status\": \"UP\", \"id\": \"2000\", \"creationTimestamp\": \"1969-12-31T16:00:00.000-08:00\"}"
     }
   ],
   "tests/cli/compute/regions.rst": [
@@ -18,13 +18,13 @@
       "cmd": "gcpcli regions list --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "[]"
+      "output": "[{\"name\": \"us-central1\", \"status\": \"UP\", \"id\": \"1000\", \"creationTimestamp\": \"1969-12-31T16:00:00.000-08:00\"}]"
     },
     {
       "cmd": "gcpcli regions describe us-central1 --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "{\"name\": \"us-central1\", \"status\": \"UP\"}"
+      "output": "{\"name\": \"us-central1\", \"status\": \"UP\", \"id\": \"1000\", \"creationTimestamp\": \"1969-12-31T16:00:00.000-08:00\"}"
     }
   ],
   "tests/cli/compute/machine-types.rst": [
@@ -32,13 +32,13 @@
       "cmd": "gcpcli machine-types list --zones=us-central1-a --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "[]"
+      "output": "[{\"name\": \"n1-standard-1\", \"guestCpus\": 1, \"memoryMb\": 3840, \"id\": \"3001\", \"creationTimestamp\": \"1969-12-31T16:00:00.000-08:00\", \"imageSpaceGb\": 10, \"isSharedCpu\": false, \"maximumPersistentDisks\": 128, \"maximumPersistentDisksSizeGb\": \"263168\"}]"
     },
     {
       "cmd": "gcpcli machine-types describe n1-standard-1 --zone=us-central1-a --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "{\"name\": \"n1-standard-1\", \"guestCpus\": 1, \"memoryMb\": 3840}"
+      "output": "{\"name\": \"n1-standard-1\", \"guestCpus\": 1, \"memoryMb\": 3840, \"id\": \"3001\", \"creationTimestamp\": \"1969-12-31T16:00:00.000-08:00\", \"imageSpaceGb\": 10, \"isSharedCpu\": false, \"maximumPersistentDisks\": 128, \"maximumPersistentDisksSizeGb\": \"263168\"}"
     }
   ],
   "tests/cli/compute/networks.rst": [
@@ -46,7 +46,7 @@
       "cmd": "gcpcli networks list --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "[]"
+      "output": "[{\"name\": \"default\"}]"
     },
     {
       "cmd": "gcpcli networks create vera-net --subnet-mode=custom --format=json",
@@ -157,13 +157,13 @@
       "output": ""
     },
     {
-      "cmd": "gcpcli instances start vera-vm --zone=us-central1-a --quiet",
+      "cmd": "gcpcli instances set-machine-type vera-vm --zone=us-central1-a --machine-type=n1-standard-2",
       "use_id": false,
       "use_file": false,
       "output": ""
     },
     {
-      "cmd": "gcpcli instances set-machine-type vera-vm --zone=us-central1-a --machine-type=n1-standard-2",
+      "cmd": "gcpcli instances start vera-vm --zone=us-central1-a --quiet",
       "use_id": false,
       "use_file": false,
       "output": ""
@@ -213,6 +213,12 @@
       "output": ""
     },
     {
+      "cmd": "gcpcli snapshots delete vera-snap --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
       "cmd": "gcpcli disks delete vera-disk --zone=us-central1-a --quiet",
       "use_id": false,
       "use_file": false,
@@ -227,6 +233,18 @@
       "output": "[]"
     },
     {
+      "cmd": "gcpcli disks create vera-snap-disk --size=10GB --zone=us-central1-a --type=pd-standard",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli disks snapshot vera-snap-disk --snapshot-names=vera-snap --zone=us-central1-a",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
       "cmd": "gcpcli snapshots describe vera-snap --format=json",
       "use_id": false,
       "use_file": false,
@@ -234,6 +252,12 @@
     },
     {
       "cmd": "gcpcli snapshots delete vera-snap --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli disks delete vera-snap-disk --zone=us-central1-a --quiet",
       "use_id": false,
       "use_file": false,
       "output": ""
@@ -268,7 +292,7 @@
       "cmd": "gcpcli addresses list --global --format=json",
       "use_id": false,
       "use_file": false,
-      "output": "[]"
+      "output": "[{\"name\": \"vera-global-ip\", \"status\": \"RESERVED\"}]"
     },
     {
       "cmd": "gcpcli addresses delete vera-ip --region=us-central1 --quiet",
@@ -341,6 +365,12 @@
       "output": "[]"
     },
     {
+      "cmd": "gcpcli health-checks create http vera-hc --port=80",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
       "cmd": "gcpcli backend-services create vera-backend --protocol=HTTP --health-checks=vera-hc --global --format=json",
       "use_id": false,
       "use_file": false,
@@ -363,6 +393,12 @@
       "use_id": false,
       "use_file": false,
       "output": ""
+    },
+    {
+      "cmd": "gcpcli health-checks delete vera-hc --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
     }
   ],
   "tests/cli/compute/url-maps.rst": [
@@ -371,6 +407,18 @@
       "use_id": false,
       "use_file": false,
       "output": "[]"
+    },
+    {
+      "cmd": "gcpcli health-checks create http vera-hc --port=80",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli backend-services create vera-backend --protocol=HTTP --health-checks=vera-hc --global",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
     },
     {
       "cmd": "gcpcli url-maps create vera-url-map --default-service=vera-backend --format=json",
@@ -389,6 +437,18 @@
       "use_id": false,
       "use_file": false,
       "output": ""
+    },
+    {
+      "cmd": "gcpcli backend-services delete vera-backend --global --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli health-checks delete vera-hc --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
     }
   ],
   "tests/cli/compute/target-http-proxies.rst": [
@@ -397,6 +457,24 @@
       "use_id": false,
       "use_file": false,
       "output": "[]"
+    },
+    {
+      "cmd": "gcpcli health-checks create http vera-hc --port=80",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli backend-services create vera-backend --protocol=HTTP --health-checks=vera-hc --global",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli url-maps create vera-url-map --default-service=vera-backend",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
     },
     {
       "cmd": "gcpcli target-http-proxies create vera-proxy --url-map=vera-url-map --format=json",
@@ -415,6 +493,24 @@
       "use_id": false,
       "use_file": false,
       "output": ""
+    },
+    {
+      "cmd": "gcpcli url-maps delete vera-url-map --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli backend-services delete vera-backend --global --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli health-checks delete vera-hc --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
     }
   ],
   "tests/cli/compute/forwarding-rules.rst": [
@@ -423,6 +519,30 @@
       "use_id": false,
       "use_file": false,
       "output": "[]"
+    },
+    {
+      "cmd": "gcpcli health-checks create http vera-hc --port=80",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli backend-services create vera-backend --protocol=HTTP --health-checks=vera-hc --global",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli url-maps create vera-url-map --default-service=vera-backend",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli target-http-proxies create vera-proxy --url-map=vera-url-map",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
     },
     {
       "cmd": "gcpcli forwarding-rules create vera-rule --global --target-http-proxy=vera-proxy --ports=80 --format=json",
@@ -444,6 +564,30 @@
     },
     {
       "cmd": "gcpcli forwarding-rules delete vera-rule --global --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli target-http-proxies delete vera-proxy --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli url-maps delete vera-url-map --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli backend-services delete vera-backend --global --quiet",
+      "use_id": false,
+      "use_file": false,
+      "output": ""
+    },
+    {
+      "cmd": "gcpcli health-checks delete vera-hc --quiet",
       "use_id": false,
       "use_file": false,
       "output": ""
