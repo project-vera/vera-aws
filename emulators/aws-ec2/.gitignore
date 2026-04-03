@@ -7,6 +7,7 @@ __pycache__/
 terraform.tfstate
 terraform.tfstate.backup
 _vera_override.tf
+tests/tf/runs/
 .bin/
 vera_aws.egg-info/
 eval_results*.json
