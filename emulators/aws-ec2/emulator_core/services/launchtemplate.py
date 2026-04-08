@@ -702,7 +702,7 @@ class LaunchTemplate_Backend:
         return f'{prefix}-{uuid.uuid4().hex[:17]}'
 
 from typing import Dict, List, Any, Optional
-from ..utils import get_scalar, get_int, get_indexed_list, parse_filters, parse_tags, str2bool, esc
+from ..utils import get_scalar, get_int, get_indexed_list, get_nested_dict, parse_filters, parse_tags, str2bool, esc
 from ..utils import is_error_response, serialize_error_response
 
 class launchtemplate_RequestParser:
@@ -711,7 +711,7 @@ class launchtemplate_RequestParser:
         return {
             "ClientToken": get_scalar(md, "ClientToken"),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
-            "LaunchTemplateData": get_scalar(md, "LaunchTemplateData"),
+            "LaunchTemplateData": get_nested_dict(md, "LaunchTemplateData") or None,
             "LaunchTemplateName": get_scalar(md, "LaunchTemplateName"),
             "Operator": get_scalar(md, "Operator"),
             "TagSpecification.N": parse_tags(md, "TagSpecification"),
@@ -723,7 +723,7 @@ class launchtemplate_RequestParser:
         return {
             "ClientToken": get_scalar(md, "ClientToken"),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
-            "LaunchTemplateData": get_scalar(md, "LaunchTemplateData"),
+            "LaunchTemplateData": get_nested_dict(md, "LaunchTemplateData") or None,
             "LaunchTemplateId": get_scalar(md, "LaunchTemplateId"),
             "LaunchTemplateName": get_scalar(md, "LaunchTemplateName"),
             "ResolveAlias": get_scalar(md, "ResolveAlias"),

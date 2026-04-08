@@ -1384,13 +1384,7 @@ class snapshot_ResponseSerializer:
         if _fullSnapshotSizeInBytes_key:
             param_data = data[_fullSnapshotSizeInBytes_key]
             indent_str = "    " * 1
-            if param_data:
-                xml_parts.append(f'{indent_str}<fullSnapshotSizeInBytesSet>')
-                for item in param_data:
-                    xml_parts.append(f'{indent_str}    <item>{esc(str(item))}</item>')
-                xml_parts.append(f'{indent_str}</fullSnapshotSizeInBytesSet>')
-            else:
-                xml_parts.append(f'{indent_str}<fullSnapshotSizeInBytesSet/>')
+            xml_parts.append(f'{indent_str}<fullSnapshotSizeInBytes>{esc(str(param_data))}</fullSnapshotSizeInBytes>')
         # Serialize kmsKeyId
         _kmsKeyId_key = None
         if "kmsKeyId" in data:
@@ -1446,13 +1440,7 @@ class snapshot_ResponseSerializer:
         if _progress_key:
             param_data = data[_progress_key]
             indent_str = "    " * 1
-            if param_data:
-                xml_parts.append(f'{indent_str}<progressSet>')
-                for item in param_data:
-                    xml_parts.append(f'{indent_str}    <item>{esc(str(item))}</item>')
-                xml_parts.append(f'{indent_str}</progressSet>')
-            else:
-                xml_parts.append(f'{indent_str}<progressSet/>')
+            xml_parts.append(f'{indent_str}<progress>{esc(str(param_data))}</progress>')
         # Serialize restoreExpiryTime
         _restoreExpiryTime_key = None
         if "restoreExpiryTime" in data:
@@ -1462,7 +1450,8 @@ class snapshot_ResponseSerializer:
         if _restoreExpiryTime_key:
             param_data = data[_restoreExpiryTime_key]
             indent_str = "    " * 1
-            xml_parts.append(f'{indent_str}<restoreExpiryTime>{esc(str(param_data))}</restoreExpiryTime>')
+            if param_data:
+                xml_parts.append(f'{indent_str}<restoreExpiryTime>{esc(str(param_data))}</restoreExpiryTime>')
         # Serialize snapshotId
         _snapshotId_key = None
         if "snapshotId" in data:
