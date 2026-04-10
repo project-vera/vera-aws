@@ -89,28 +89,33 @@ _MT_GET_RE  = re.compile(r"zones/([^/]+)/machineTypes/([^/]+)$")
 
 # Static machine-type definitions (subset of real GCP types used in tests)
 _MACHINE_TYPES: Dict[str, Dict[str, Any]] = {
-    "n1-standard-1":  {"guestCpus": 1,  "memoryMb": 3840,  "description": "1 vCPU, 3.75 GB RAM"},
-    "n1-standard-2":  {"guestCpus": 2,  "memoryMb": 7680,  "description": "2 vCPUs, 7.5 GB RAM"},
-    "n1-standard-4":  {"guestCpus": 4,  "memoryMb": 15360, "description": "4 vCPUs, 15 GB RAM"},
-    "e2-micro":       {"guestCpus": 2,  "memoryMb": 1024,  "description": "2 vCPUs, 1 GB RAM"},
-    "e2-small":       {"guestCpus": 2,  "memoryMb": 2048,  "description": "2 vCPUs, 2 GB RAM"},
-    "e2-medium":      {"guestCpus": 2,  "memoryMb": 4096,  "description": "2 vCPUs, 4 GB RAM"},
-    "e2-standard-2":  {"guestCpus": 2,  "memoryMb": 8192,  "description": "2 vCPUs, 8 GB RAM"},
-    "e2-standard-4":  {"guestCpus": 4,  "memoryMb": 16384, "description": "4 vCPUs, 16 GB RAM"},
-    "n2-standard-2":  {"guestCpus": 2,  "memoryMb": 8192,  "description": "2 vCPUs, 8 GB RAM"},
-    "n2-standard-4":  {"guestCpus": 4,  "memoryMb": 16384, "description": "4 vCPUs, 16 GB RAM"},
+    "n1-standard-1":  {"id": "3001",   "guestCpus": 1,  "memoryMb": 3840,  "imageSpaceGb": 10, "isSharedCpu": False, "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "1 vCPU, 3.75 GB RAM"},
+    "n1-standard-2":  {"id": "3002",   "guestCpus": 2,  "memoryMb": 7680,  "imageSpaceGb": 10, "isSharedCpu": False, "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "2 vCPUs, 7.5 GB RAM"},
+    "n1-standard-4":  {"id": "3004",   "guestCpus": 4,  "memoryMb": 15360, "imageSpaceGb": 10, "isSharedCpu": False, "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "4 vCPUs, 15 GB RAM"},
+    "e2-micro":       {"id": "334002", "guestCpus": 2,  "memoryMb": 1024,  "imageSpaceGb": 0,  "isSharedCpu": True,  "maximumPersistentDisks": 16,  "maximumPersistentDisksSizeGb": "3072",   "description": "Efficient Instance, 2 vCPU (1/8 shared physical core) and 1 GB RAM"},
+    "e2-small":       {"id": "334003", "guestCpus": 2,  "memoryMb": 2048,  "imageSpaceGb": 0,  "isSharedCpu": True,  "maximumPersistentDisks": 16,  "maximumPersistentDisksSizeGb": "3072",   "description": "Efficient Instance, 2 vCPU (1/4 shared physical core) and 2 GB RAM"},
+    "e2-medium":      {"id": "334004", "guestCpus": 2,  "memoryMb": 4096,  "imageSpaceGb": 0,  "isSharedCpu": True,  "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "Efficient Instance, 2 vCPU (1/2 shared physical core) and 4 GB RAM"},
+    "e2-standard-2":  {"id": "335002", "guestCpus": 2,  "memoryMb": 8192,  "imageSpaceGb": 0,  "isSharedCpu": False, "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "Efficient Instance, 2 vCPUs, 8 GB RAM"},
+    "e2-standard-4":  {"id": "335004", "guestCpus": 4,  "memoryMb": 16384, "imageSpaceGb": 0,  "isSharedCpu": False, "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "Efficient Instance, 4 vCPUs, 16 GB RAM"},
+    "n2-standard-2":  {"id": "901002", "guestCpus": 2,  "memoryMb": 8192,  "imageSpaceGb": 0,  "isSharedCpu": False, "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "2 vCPUs 8 GB RAM"},
+    "n2-standard-4":  {"id": "901004", "guestCpus": 4,  "memoryMb": 16384, "imageSpaceGb": 0,  "isSharedCpu": False, "maximumPersistentDisks": 128, "maximumPersistentDisksSizeGb": "263168", "description": "4 vCPUs 16 GB RAM"},
 }
 
 
 def _make_machine_type_dict(name: str, zone: str, project: str = "vera-project") -> Dict[str, Any]:
-    info = _MACHINE_TYPES.get(name, {"guestCpus": 1, "memoryMb": 3840, "description": name})
+    info = _MACHINE_TYPES.get(name, {"id": "0", "guestCpus": 1, "memoryMb": 3840, "description": name})
     return {
         "kind": "compute#machineType",
-        "id": str(abs(hash(name)) % (10**15)),
+        "id": info["id"],
+        "creationTimestamp": "1969-12-31T16:00:00.000-08:00",
         "name": name,
         "description": info["description"],
         "guestCpus": info["guestCpus"],
         "memoryMb": info["memoryMb"],
+        "imageSpaceGb": info["imageSpaceGb"],
+        "isSharedCpu": info["isSharedCpu"],
+        "maximumPersistentDisks": info["maximumPersistentDisks"],
+        "maximumPersistentDisksSizeGb": info["maximumPersistentDisksSizeGb"],
         "zone": zone,
         "selfLink": f"https://www.googleapis.com/compute/v1/projects/{project}/zones/{zone}/machineTypes/{name}",
     }
@@ -297,20 +302,124 @@ def _seed_defaults() -> None:
             description="Default network for the project",
         )
         logger.info("Seeded default VPC network")
+    _CPU_PLATFORMS_AB = [
+        "Ampere Altra",
+        "Intel Broadwell",
+        "Intel Cascade Lake",
+        "Intel Emerald Rapids",
+        "AMD Genoa",
+        "NVIDIA Grace",
+        "Intel Granite Rapids",
+        "Intel Haswell",
+        "Intel Ice Lake",
+        "Intel Ivy Bridge",
+        "Google Axion",
+        "AMD Milan",
+        "AMD Rome",
+        "Intel Sandy Bridge",
+        "Intel Sapphire Rapids",
+        "Intel Skylake",
+        "Google Axion",
+        "AMD Turin",
+    ]
+    _CPU_PLATFORMS_F = [
+        "Ampere Altra",
+        "Intel Broadwell",
+        "Intel Cascade Lake",
+        "Intel Emerald Rapids",
+        "AMD Genoa",
+        "Intel Granite Rapids",
+        "Intel Haswell",
+        "Intel Ice Lake",
+        "Intel Ivy Bridge",
+        "Google Axion",
+        "AMD Milan",
+        "AMD Rome",
+        "Intel Sandy Bridge",
+        "Intel Sapphire Rapids",
+        "Intel Skylake",
+        "Google Axion",
+        "AMD Turin",
+    ]
+    _CPU_PLATFORMS_C = [
+        "Intel Broadwell",
+        "Intel Cascade Lake",
+        "Intel Emerald Rapids",
+        "AMD Genoa",
+        "Intel Granite Rapids",
+        "Intel Haswell",
+        "Intel Ice Lake",
+        "Intel Ivy Bridge",
+        "Google Axion",
+        "AMD Milan",
+        "AMD Rome",
+        "Intel Sandy Bridge",
+        "Intel Sapphire Rapids",
+        "Intel Skylake",
+        "Google Axion",
+        "AMD Turin",
+    ]
     if "us-central1-a" not in state.zones:
         state.zones["us-central1-a"] = Zone(
             name="us-central1-a",
             region="us-central1",
             status="UP",
             description="us-central1-a",
+            creation_timestamp="1969-12-31T16:00:00.000-08:00",
+            id="2000",
+            supports_pzs=True,
+            available_cpu_platforms=_CPU_PLATFORMS_AB,
         )
         logger.info("Seeded zone us-central1-a")
+    if "us-central1-b" not in state.zones:
+        state.zones["us-central1-b"] = Zone(
+            name="us-central1-b",
+            region="us-central1",
+            status="UP",
+            description="us-central1-b",
+            creation_timestamp="1969-12-31T16:00:00.000-08:00",
+            id="2001",
+            supports_pzs=True,
+            available_cpu_platforms=_CPU_PLATFORMS_AB,
+        )
+        logger.info("Seeded zone us-central1-b")
+    if "us-central1-c" not in state.zones:
+        state.zones["us-central1-c"] = Zone(
+            name="us-central1-c",
+            region="us-central1",
+            status="UP",
+            description="us-central1-c",
+            creation_timestamp="1969-12-31T16:00:00.000-08:00",
+            id="2002",
+            supports_pzs=True,
+            available_cpu_platforms=_CPU_PLATFORMS_C,
+        )
+        logger.info("Seeded zone us-central1-c")
+    if "us-central1-f" not in state.zones:
+        state.zones["us-central1-f"] = Zone(
+            name="us-central1-f",
+            region="us-central1",
+            status="UP",
+            description="us-central1-f",
+            creation_timestamp="1969-12-31T16:00:00.000-08:00",
+            id="2004",
+            supports_pzs=False,
+            available_cpu_platforms=_CPU_PLATFORMS_F,
+        )
+        logger.info("Seeded zone us-central1-f")
     if "us-central1" not in state.regions:
         state.regions["us-central1"] = Region(
             name="us-central1",
             status="UP",
             description="us-central1",
-            zones=["https://www.googleapis.com/compute/v1/projects/vera-project/zones/us-central1-a"],
+            zones=[
+                "https://www.googleapis.com/compute/v1/projects/vera-project/zones/us-central1-a",
+                "https://www.googleapis.com/compute/v1/projects/vera-project/zones/us-central1-b",
+                "https://www.googleapis.com/compute/v1/projects/vera-project/zones/us-central1-c",
+                "https://www.googleapis.com/compute/v1/projects/vera-project/zones/us-central1-f",
+            ],
+            creation_timestamp="1969-12-31T16:00:00.000-08:00",
+            id="1000",
         )
         logger.info("Seeded region us-central1")
 

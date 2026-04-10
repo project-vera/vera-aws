@@ -30,7 +30,8 @@ class Region:
     def to_dict(self) -> Dict[str, Any]:
         d: Dict[str, Any] = {}
         d["quotas"] = self.quotas
-        d["deprecated"] = self.deprecated
+        if self.deprecated:
+            d["deprecated"] = self.deprecated
         if self.creation_timestamp is not None and self.creation_timestamp != "":
             d["creationTimestamp"] = self.creation_timestamp
         if self.description is not None and self.description != "":
@@ -45,7 +46,7 @@ class Region:
         if self.id is not None and self.id != "":
             d["id"] = self.id
         d["kind"] = "compute#region"
-        d["selfLink"] = f"https://www.googleapis.com/compute/v1/{self.name}"
+        d["selfLink"] = f"https://www.googleapis.com/compute/v1/projects/vera-project/regions/{self.name}"
         return d
 
 class Region_Backend:

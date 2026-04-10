@@ -39,11 +39,12 @@ class Zone:
             d["status"] = self.status
         if self.id is not None and self.id != "":
             d["id"] = self.id
-        d["deprecated"] = self.deprecated
+        if self.deprecated:
+            d["deprecated"] = self.deprecated
         d["supportsPzs"] = self.supports_pzs
         d["availableCpuPlatforms"] = self.available_cpu_platforms
         d["kind"] = "compute#zone"
-        d["selfLink"] = f"https://www.googleapis.com/compute/v1/{self.name}"
+        d["selfLink"] = f"https://www.googleapis.com/compute/v1/projects/vera-project/zones/{self.name}"
         return d
 
 class Zone_Backend:
