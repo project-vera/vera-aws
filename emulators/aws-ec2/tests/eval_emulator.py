@@ -45,17 +45,17 @@ def run_command(cmd, timeout=30):
         'error': ''
     }
     
+    kwargs = dict(
+        shell=True,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        env=os.environ,
+    )
+    if sys.platform != 'win32':
+        kwargs['executable'] = '/bin/bash'
     try:
-        process = subprocess.run(
-            cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            env=os.environ,
-            executable='/bin/bash'
-        )
-        
+        process = subprocess.run(cmd, **kwargs)
         result['exit_code'] = process.returncode
         result['stdout'] = process.stdout
         result['stderr'] = process.stderr

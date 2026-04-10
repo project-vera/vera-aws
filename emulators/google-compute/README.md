@@ -7,7 +7,8 @@ Check out the [Vera website](https://project-vera.github.io/) for more informati
 ## Setup
 
 ```bash
-./install.sh
+./install.sh # for Linux and macOS
+.\install.ps1 # for Windows
 ```
 
 This creates a venv, installs dependencies, installs the `gcloud` CLI if missing (macOS/Linux), and generates a `gcpcli` wrapper script in `.venv/bin/`:
@@ -53,7 +54,8 @@ uv run gcpcli instances delete my-vm --zone=us-central1-a
 ### gcloud CLI with venv activated
 
 ```bash
-source .venv/bin/activate
+source .venv/bin/activate # for Linux or macOS
+. .\.venv\Scripts\Activate.ps1 # for Windows
 
 gcpcli instances list
 gcpcli disks list
@@ -106,7 +108,8 @@ for instance in instances:
 uv run main.py
 
 # Terminal 2 — run the full gcloud compute test suite
-source .venv/bin/activate
+source .venv/bin/activate # for Linux or macOS
+
 bash tests/test.sh
 ```
 
@@ -116,7 +119,8 @@ bash tests/test.sh
 
 ```
 main.py                        Flask server (port 9100) — GCP Compute REST gateway
-install.sh                     Sets up gcpcli wrapper and isolated gcloud config
+install.sh                     Sets up gcpcli wrapper and isolated gcloud config for Linux and macOS
+install.ps1                    Sets up gcpcli wrapper and isolated gcloud config for Windows
 emulator_core/
 ├── state.py                   In-memory resource store (GCPState singleton)
 ├── utils.py                   Shared helpers: operations, pagination, filtering

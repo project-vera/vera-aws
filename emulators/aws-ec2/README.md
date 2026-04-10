@@ -8,7 +8,8 @@ Check out the [Vera website](https://project-vera.github.io/) for more informati
 ## Setup
 
 ```bash
-./install.sh
+./install.sh # for Linux and macOS
+.\install.ps1 # for Winodws
 ```
 
 This creates a venv, installs dependencies, sets up dummy AWS credentials (`~/.aws/credentials`), and generates two wrapper scripts in `.venv/bin/`:
@@ -48,7 +49,8 @@ uv run awscli ec2 create-vpc --cidr-block 10.0.0.0/16
 
 Simply activate the venv and run `awscli`:
 ```bash
-source .venv/bin/activate
+source .venv/bin/activate # for Linux or macOS
+. .\.venv\Scripts\Activate.ps1 # for Windows
 
 awscli ec2 describe-vpcs
 awscli ec2 run-instances --image-id ami-12345678 --instance-type t2.micro
@@ -72,7 +74,8 @@ resource "aws_vpc" "main" {
 Then use `uv run terlocal` instead of `terraform`. Or simply activate the venv and directly run `terlocal`:
 
 ```bash
-source .venv/bin/activate
+source .venv/bin/activate # for Linux or macOS
+. .\.venv\Scripts\Activate.ps1 # for Windows
 
 terlocal init
 terlocal apply -auto-approve
@@ -107,7 +110,8 @@ uv run terlocal init && uv run terlocal apply -auto-approve
 
 ```
 main.py                        Flask server (port 5003)
-install.sh                     Sets up awscli/terlocal wrappers
+install.sh                     Sets up awscli/terlocal wrappers for Linux and macOS
+install.ps1                    Sets up awscli/terlocal wrappers for Windows
 emulator_core/
 ├── state.py                   In-memory resource store (EC2State singleton)
 ├── utils.py                   Shared request parsing and response utilities

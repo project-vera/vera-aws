@@ -54,7 +54,8 @@ Vera runs the cloud on your laptop. It mimics the APIs of Amazon Web Services an
 
 ```bash
 docker compose up -d
-source ./vera-env.sh
+source ./vera-env.sh # for Linux or MacOS
+. .\vera-env.ps1 # for Windows
 
 aws ec2 create-vpc --cidr-block 10.0.0.0/16
 gcloud compute instances list --project=vera-project
