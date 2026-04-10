@@ -21,3 +21,10 @@ CLAUDE.md
 results/
 .venv/
 .python-version
+
+# aws-dynamodb emulator
+emulators/aws-dynamodb/dynamodb-local/
+emulators/aws-dynamodb/dynamodb-local-metadata.json
+emulators/aws-dynamodb/tests/eval_results.json
+emulators/aws-dynamodb/tests/test.sh
+emulators/aws-dynamodb/tests/tmp/

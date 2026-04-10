@@ -1,4 +1,28 @@
 services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - "8000:8000"
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-inMemory"]
+    healthcheck:
+      test: ["CMD", "curl", "-s", "--max-time", "2", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  vera-dynamodb:
+    build:
+      context: emulators/aws-dynamodb
+    ports:
+      - "5005:5005"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',5005),timeout=2); s.close()"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
   vera-aws:
     build:
       context: emulators/aws-ec2

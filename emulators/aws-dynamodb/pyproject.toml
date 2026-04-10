@@ -1,0 +1,14 @@
+[project]
+name = "vera-dynamodb"
+version = "1"
+description = "A local AWS DynamoDB proxy with state machine enforcement"
+requires-python = ">=3.13"
+dependencies = [
+    "flask>=3.0",
+    "requests>=2.31",
+]
+
+[dependency-groups]
+dev = [
+    "boto3>=1.42.71",
+]

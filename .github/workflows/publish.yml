@@ -1,0 +1,49 @@
+name: Publish Docker Images
+
+on:
+  push:
+    branches: [main, feat/github_action_integration]
+    paths:
+      - 'emulators/aws-ec2/**'
+      - 'emulators/google-compute/**'
+      - '.github/workflows/publish.yml'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Build and push emulator images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set lowercase owner
+        run: echo "OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push vera-aws
+        uses: docker/build-push-action@v6
+        with:
+          context: emulators/aws-ec2
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER }}/vera/vera-aws:latest
+            ghcr.io/${{ env.OWNER }}/vera/vera-aws:${{ github.sha }}
+
+      - name: Build and push vera-gcp
+        uses: docker/build-push-action@v6
+        with:
+          context: emulators/google-compute
+          push: true
+          tags: |
+            ghcr.io/${{ env.OWNER }}/vera/vera-gcp:latest
+            ghcr.io/${{ env.OWNER }}/vera/vera-gcp:${{ github.sha }}
