@@ -200,6 +200,53 @@ from typing import Dict, List, Any, Optional
 from ..utils import get_scalar, get_int, get_indexed_list, parse_filters, parse_tags, str2bool, esc
 from ..utils import is_error_response, serialize_error_response
 
+def parse_dhcp_configurations(params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Parse CreateDhcpOptions DhcpConfiguration.N nested query parameters.
+
+    AWS CLI sends DHCP configurations as EC2 Query-style flattened nested fields,
+    for example:
+        DhcpConfiguration.1.Key=domain-name
+        DhcpConfiguration.1.Value.1=example.com
+
+    get_indexed_list(params, "DhcpConfiguration") only supports scalar indexed
+    fields such as DhcpConfiguration.1, so this helper reconstructs the nested
+    object list without changing the shared scalar-list parser used by other APIs.
+    """
+    configs: List[Dict[str, Any]] = []
+    index = 1
+
+    while True:
+        prefix = f"DhcpConfiguration.{index}"
+        key_name = f"{prefix}.Key"
+
+        if key_name not in params:
+            break
+
+        key = get_scalar(params, key_name)
+        values: List[Dict[str, str]] = []
+
+        value_index = 1
+        while True:
+            value_name = f"{prefix}.Value.{value_index}"
+            if value_name not in params:
+                break
+
+            value = get_scalar(params, value_name)
+            if value is not None:
+                values.append({"value": value})
+
+            value_index += 1
+
+        configs.append({
+            "key": key,
+            "valueSet": values,
+        })
+
+        index += 1
+
+    return configs
+
+
 class dhcpoptions_RequestParser:
     @staticmethod
     def parse_associate_dhcp_options_request(md: Dict[str, Any]) -> Dict[str, Any]:
@@ -212,7 +259,7 @@ class dhcpoptions_RequestParser:
     @staticmethod
     def parse_create_dhcp_options_request(md: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "DhcpConfiguration.N": get_indexed_list(md, "DhcpConfiguration"),
+            "DhcpConfiguration.N": parse_dhcp_configurations(md),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
             "TagSpecification.N": parse_tags(md, "TagSpecification"),
         }
@@ -335,27 +382,26 @@ class dhcpoptions_ResponseSerializer:
     def serialize_create_dhcp_options_response(data: Dict[str, Any], request_id: str) -> str:
         xml_parts = []
         xml_parts.append(f'<CreateDhcpOptionsResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">')
-        xml_parts.append(f'    <requestId>{esc(request_id)}</requestId>')
-        # Serialize dhcpOptions
-        _dhcpOptions_key = None
-        if "dhcpOptions" in data:
-            _dhcpOptions_key = "dhcpOptions"
-        elif "DhcpOptions" in data:
-            _dhcpOptions_key = "DhcpOptions"
-        if _dhcpOptions_key:
-            param_data = data[_dhcpOptions_key]
-            indent_str = "    " * 1
-            if param_data:
-                xml_parts.append(f'{indent_str}<dhcpOptionsSet>')
-                for item in param_data:
-                    xml_parts.append(f'{indent_str}    <item>')
-                    xml_parts.extend(dhcpoptions_ResponseSerializer._serialize_nested_fields(item, 2))
-                    xml_parts.append(f'{indent_str}    </item>')
-                xml_parts.append(f'{indent_str}</dhcpOptionsSet>')
-            else:
-                xml_parts.append(f'{indent_str}<dhcpOptionsSet/>')
+        xml_parts.append(f'    <requestId>{esc(str(request_id))}</requestId>')
+
+        # CreateDhcpOptions is a singular create response.
+        # AWS CLI / botocore expects <dhcpOptions>, not <dhcpOptionsSet>.
+        param_data = data.get("dhcpOptions") or data.get("DhcpOptions") or []
+
+        if isinstance(param_data, list):
+            dhcp_options = param_data[0] if param_data else None
+        else:
+            dhcp_options = param_data
+
+        if dhcp_options:
+            xml_parts.append(f'    <dhcpOptions>')
+            xml_parts.extend(dhcpoptions_ResponseSerializer._serialize_nested_fields(dhcp_options, 2))
+            xml_parts.append(f'    </dhcpOptions>')
+        else:
+            xml_parts.append(f'    <dhcpOptions/>')
+
         xml_parts.append(f'</CreateDhcpOptionsResponse>')
-        return "\n".join(xml_parts)
+        return '\n'.join(xml_parts)
 
     @staticmethod
     def serialize_delete_dhcp_options_response(data: Dict[str, Any], request_id: str) -> str:
