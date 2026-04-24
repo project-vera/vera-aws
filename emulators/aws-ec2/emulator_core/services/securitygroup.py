@@ -115,20 +115,241 @@ class SecurityGroup_Backend:
             )
         return None, create_error_response("MissingParameter", "GroupId is required.")
 
+    # def _normalize_ip_permissions(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+    #     ip_permissions = params.get("IpPermissions.N", []) or []
+    #     if not ip_permissions and params.get("IpProtocol"):
+    #         ip_permissions = [
+    #             {
+    #                 "IpProtocol": params.get("IpProtocol", "-1"),
+    #                 "FromPort": int(params.get("FromPort") or 0),
+    #                 "ToPort": int(params.get("ToPort") or 0),
+    #                 "IpRanges": [
+    #                     {"CidrIp": params.get("CidrIp", "0.0.0.0/0")}
+    #                 ],
+    #             }
+    #         ]
+    #     return ip_permissions
+
+    def _to_int_or_none(self, value: Any) -> Optional[int]:
+        if value is None or value == "":
+            return None
+        try:
+            return int(value)
+        except Exception:
+            return None
+
+    def _permission_template(self) -> Dict[str, Any]:
+        return {
+            "IpProtocol": None,
+            "FromPort": None,
+            "ToPort": None,
+            "IpRanges": [],
+            "Ipv6Ranges": [],
+            "PrefixListIds": [],
+            "UserIdGroupPairs": [],
+        }
+
+    def _normalize_permission_shape(self, perm: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Ensure every permission has the canonical fields expected by downstream code.
+        """
+        normalized = self._permission_template()
+        normalized["IpProtocol"] = perm.get("IpProtocol", perm.get("ipProtocol"))
+        normalized["FromPort"] = self._to_int_or_none(perm.get("FromPort", perm.get("fromPort")))
+        normalized["ToPort"] = self._to_int_or_none(perm.get("ToPort", perm.get("toPort")))
+
+        ip_ranges = perm.get("IpRanges", []) or []
+        ipv6_ranges = perm.get("Ipv6Ranges", []) or []
+        prefix_lists = perm.get("PrefixListIds", []) or []
+        user_groups = perm.get("UserIdGroupPairs", []) or []
+
+        normalized["IpRanges"] = ip_ranges if isinstance(ip_ranges, list) else [ip_ranges]
+        normalized["Ipv6Ranges"] = ipv6_ranges if isinstance(ipv6_ranges, list) else [ipv6_ranges]
+        normalized["PrefixListIds"] = prefix_lists if isinstance(prefix_lists, list) else [prefix_lists]
+        normalized["UserIdGroupPairs"] = user_groups if isinstance(user_groups, list) else [user_groups]
+
+        if perm.get("Description") is not None:
+            normalized["Description"] = perm.get("Description")
+
+        return normalized
+
+    def _build_permission_from_simple_fields(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Fallback for simple-form inputs such as:
+          --protocol tcp --port 22 --cidr 0.0.0.0/0
+
+        Depending on how the request reached the service, these may appear as top-level
+        IpProtocol / FromPort / ToPort / CidrIp fields.
+        """
+        ip_protocol = params.get("IpProtocol")
+        from_port = params.get("FromPort")
+        to_port = params.get("ToPort")
+        cidr_ip = params.get("CidrIp")
+        cidr_ipv6 = params.get("CidrIpv6")
+
+        if ip_protocol is None and cidr_ip is None and cidr_ipv6 is None:
+            return []
+
+        perm = self._permission_template()
+        perm["IpProtocol"] = ip_protocol if ip_protocol is not None else "-1"
+        perm["FromPort"] = self._to_int_or_none(from_port)
+        perm["ToPort"] = self._to_int_or_none(to_port)
+
+        if cidr_ip is not None:
+            perm["IpRanges"].append({"CidrIp": cidr_ip})
+        if cidr_ipv6 is not None:
+            perm["Ipv6Ranges"].append({"CidrIpv6": cidr_ipv6})
+
+        if params.get("Description") is not None:
+            perm["Description"] = params.get("Description")
+
+        return [perm]
+
+    def _parse_ip_permissions_raw(self, raw_params: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Parse flattened AWS Query parameters such as:
+          IpPermissions.1.IpProtocol=tcp
+          IpPermissions.1.FromPort=22
+          IpPermissions.1.ToPort=22
+          IpPermissions.1.IpRanges.1.CidrIp=0.0.0.0/0
+
+        This is the critical fallback when get_indexed_list(md, "IpPermissions")
+        returns [] even though the CLI sent valid flattened parameters.
+        """
+        if not raw_params:
+            return []
+
+        perms: Dict[int, Dict[str, Any]] = {}
+        ip_ranges_map: Dict[int, Dict[int, Dict[str, Any]]] = {}
+        ipv6_ranges_map: Dict[int, Dict[int, Dict[str, Any]]] = {}
+        prefix_lists_map: Dict[int, Dict[int, Dict[str, Any]]] = {}
+        user_groups_map: Dict[int, Dict[int, Dict[str, Any]]] = {}
+
+        for raw_key, raw_value in raw_params.items():
+            if not isinstance(raw_key, str):
+                continue
+            if not raw_key.startswith("IpPermissions."):
+                continue
+
+            m = re.match(r"^IpPermissions\.(\d+)\.(.+)$", raw_key)
+            if not m:
+                continue
+
+            perm_idx = int(m.group(1))
+            suffix = m.group(2)
+
+            perm = perms.setdefault(perm_idx, self._permission_template())
+
+            if suffix == "IpProtocol":
+                perm["IpProtocol"] = raw_value
+                continue
+            if suffix == "FromPort":
+                perm["FromPort"] = self._to_int_or_none(raw_value)
+                continue
+            if suffix == "ToPort":
+                perm["ToPort"] = self._to_int_or_none(raw_value)
+                continue
+            if suffix == "Description":
+                perm["Description"] = raw_value
+                continue
+
+            m_v4 = re.match(r"^IpRanges\.(\d+)\.CidrIp$", suffix)
+            if m_v4:
+                item_idx = int(m_v4.group(1))
+                ip_ranges_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["CidrIp"] = raw_value
+                continue
+
+            m_v4_desc = re.match(r"^IpRanges\.(\d+)\.Description$", suffix)
+            if m_v4_desc:
+                item_idx = int(m_v4_desc.group(1))
+                ip_ranges_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["Description"] = raw_value
+                continue
+
+            m_v6 = re.match(r"^Ipv6Ranges\.(\d+)\.CidrIpv6$", suffix)
+            if m_v6:
+                item_idx = int(m_v6.group(1))
+                ipv6_ranges_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["CidrIpv6"] = raw_value
+                continue
+
+            m_v6_desc = re.match(r"^Ipv6Ranges\.(\d+)\.Description$", suffix)
+            if m_v6_desc:
+                item_idx = int(m_v6_desc.group(1))
+                ipv6_ranges_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["Description"] = raw_value
+                continue
+
+            m_pl = re.match(r"^PrefixListIds\.(\d+)\.PrefixListId$", suffix)
+            if m_pl:
+                item_idx = int(m_pl.group(1))
+                prefix_lists_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["PrefixListId"] = raw_value
+                continue
+
+            m_pl_desc = re.match(r"^PrefixListIds\.(\d+)\.Description$", suffix)
+            if m_pl_desc:
+                item_idx = int(m_pl_desc.group(1))
+                prefix_lists_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["Description"] = raw_value
+                continue
+
+            m_ug_gid = re.match(r"^UserIdGroupPairs\.(\d+)\.GroupId$", suffix)
+            if m_ug_gid:
+                item_idx = int(m_ug_gid.group(1))
+                user_groups_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["GroupId"] = raw_value
+                continue
+
+            m_ug_uid = re.match(r"^UserIdGroupPairs\.(\d+)\.UserId$", suffix)
+            if m_ug_uid:
+                item_idx = int(m_ug_uid.group(1))
+                user_groups_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["UserId"] = raw_value
+                continue
+
+            m_ug_vpc = re.match(r"^UserIdGroupPairs\.(\d+)\.VpcId$", suffix)
+            if m_ug_vpc:
+                item_idx = int(m_ug_vpc.group(1))
+                user_groups_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["VpcId"] = raw_value
+                continue
+
+            m_ug_desc = re.match(r"^UserIdGroupPairs\.(\d+)\.Description$", suffix)
+            if m_ug_desc:
+                item_idx = int(m_ug_desc.group(1))
+                user_groups_map.setdefault(perm_idx, {}).setdefault(item_idx, {})["Description"] = raw_value
+                continue
+
+        if not perms:
+            return []
+
+        for perm_idx, perm in perms.items():
+            if perm_idx in ip_ranges_map:
+                perm["IpRanges"] = [ip_ranges_map[perm_idx][i] for i in sorted(ip_ranges_map[perm_idx].keys())]
+            if perm_idx in ipv6_ranges_map:
+                perm["Ipv6Ranges"] = [ipv6_ranges_map[perm_idx][i] for i in sorted(ipv6_ranges_map[perm_idx].keys())]
+            if perm_idx in prefix_lists_map:
+                perm["PrefixListIds"] = [prefix_lists_map[perm_idx][i] for i in sorted(prefix_lists_map[perm_idx].keys())]
+            if perm_idx in user_groups_map:
+                perm["UserIdGroupPairs"] = [user_groups_map[perm_idx][i] for i in sorted(user_groups_map[perm_idx].keys())]
+
+        ordered = [self._normalize_permission_shape(perms[i]) for i in sorted(perms.keys())]
+        return ordered
+
     def _normalize_ip_permissions(self, params: Dict[str, Any]) -> List[Dict[str, Any]]:
-        ip_permissions = params.get("IpPermissions.N", []) or []
-        if not ip_permissions and params.get("IpProtocol"):
-            ip_permissions = [
-                {
-                    "IpProtocol": params.get("IpProtocol", "-1"),
-                    "FromPort": int(params.get("FromPort") or 0),
-                    "ToPort": int(params.get("ToPort") or 0),
-                    "IpRanges": [
-                        {"CidrIp": params.get("CidrIp", "0.0.0.0/0")}
-                    ],
-                }
-            ]
-        return ip_permissions
+        """
+        Priority:
+          1. already parsed IpPermissions.N list
+          2. raw flattened IpPermissions.* query parameters
+          3. simple top-level IpProtocol / FromPort / ToPort / CidrIp fallback
+        """
+        existing = params.get("IpPermissions.N", []) or []
+        if existing:
+            return [self._normalize_permission_shape(p) for p in existing]
+
+        raw_params = params.get("IpPermissionsRaw", {}) or {}
+        parsed_raw = self._parse_ip_permissions_raw(raw_params)
+        if parsed_raw:
+            return parsed_raw
+
+        simple = self._build_permission_from_simple_fields(params)
+        if simple:
+            return [self._normalize_permission_shape(p) for p in simple]
+
+        return []
 
     def _extract_tags(self, tag_specs: List[Dict[str, Any]], resource_type: str = "security-group") -> List[Dict[str, Any]]:
         tags: List[Dict[str, Any]] = []
@@ -163,6 +384,55 @@ class SecurityGroup_Backend:
     def _list_rules(self, group: SecurityGroup) -> List[Dict[str, Any]]:
         return list(group.security_group_rules.values())
 
+    def _permission_to_describe_sg_shape(self, perm: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "ipProtocol": perm.get("IpProtocol"),
+            "fromPort": perm.get("FromPort"),
+            "toPort": perm.get("ToPort"),
+            "groups": [
+                {
+                    "groupId": pair.get("GroupId"),
+                    "userId": pair.get("UserId"),
+                    "vpcId": pair.get("VpcId"),
+                    "description": pair.get("Description"),
+                }
+                for pair in (perm.get("UserIdGroupPairs", []) or [])
+            ],
+            "ipRanges": [
+                {
+                    "cidrIp": r.get("CidrIp"),
+                    "description": r.get("Description"),
+                }
+                for r in (perm.get("IpRanges", []) or [])
+            ],
+            "ipv6Ranges": [
+                {
+                    "cidrIpv6": r.get("CidrIpv6"),
+                    "description": r.get("Description"),
+                }
+                for r in (perm.get("Ipv6Ranges", []) or [])
+            ],
+            "prefixListIds": [
+                {
+                    "prefixListId": p.get("PrefixListId"),
+                    "description": p.get("Description"),
+                }
+                for p in (perm.get("PrefixListIds", []) or [])
+            ],
+        }
+
+    def _security_group_to_describe_shape(self, group: SecurityGroup) -> Dict[str, Any]:
+        return {
+            "groupDescription": group.group_description,
+            "groupId": group.group_id,
+            "groupName": group.group_name,
+            "ipPermissions": [self._permission_to_describe_sg_shape(p) for p in (group.ip_permissions or [])],
+            "ipPermissionsEgress": [self._permission_to_describe_sg_shape(p) for p in (group.ip_permissions_egress or [])],
+            "ownerId": group.owner_id,
+            "securityGroupArn": group.security_group_arn,
+            "tagSet": group.tag_set,
+            "vpcId": group.vpc_id,
+        }
 
     # - State management: _update_state(resource, new_state: str)
     # - Complex operations: _process_associations(params: Dict) -> Dict
@@ -187,6 +457,7 @@ class SecurityGroup_Backend:
             )
 
         ip_permissions = self._normalize_ip_permissions(params)
+        print("[sg-debug] normalized ip_permissions =", ip_permissions)
         if not ip_permissions:
             return create_error_response("MissingParameter", "Missing required parameter: IpPermissions")
 
@@ -318,6 +589,7 @@ class SecurityGroup_Backend:
             return error
 
         ip_permissions = self._normalize_ip_permissions(params)
+        print("[sg-debug] normalized ip_permissions =", ip_permissions)
         if not ip_permissions:
             return create_error_response("MissingParameter", "Missing required parameter: IpPermissions")
 
@@ -460,6 +732,7 @@ class SecurityGroup_Backend:
         tags = self._extract_tags(params.get("TagSpecification.N", []))
         security_group_arn = f"arn:aws:ec2:::security-group/{group_id}"
         owner_id = getattr(vpc, "owner_id", "") if vpc else ""
+
         resource = SecurityGroup(
             group_description=params.get("GroupDescription") or "",
             group_id=group_id,
@@ -469,8 +742,6 @@ class SecurityGroup_Backend:
             tag_set=tags,
             vpc_id=vpc_id or "",
         )
-        if vpc_id:
-            self._register_vpc_association(resource, vpc_id, state="associated")
 
         self.resources[group_id] = resource
 
@@ -500,6 +771,11 @@ class SecurityGroup_Backend:
                 "DependencyViolation",
                 "SecurityGroup has dependent AuthorizationRule(s) and cannot be deleted.",
             )
+
+        # Backward-compat cleanup:
+        # older objects may have had the primary VPC incorrectly stored as an association.
+        if group.vpc_id and group.associated_vpc_ids == [group.vpc_id]:
+            self._deregister_vpc_association(group, group.vpc_id)
 
         if group.associated_vpc_ids:
             return create_error_response(
@@ -602,8 +878,8 @@ class SecurityGroup_Backend:
 
         return {
             'nextToken': None,
-            'securityGroupInfo': [resource.to_dict() for resource in resources],
-            }
+            'securityGroupInfo': [self._security_group_to_describe_shape(resource) for resource in resources],
+        }
 
     def ModifySecurityGroupRules(self, params: Dict[str, Any]):
         """Modifies the rules of a security group."""
@@ -697,6 +973,7 @@ class SecurityGroup_Backend:
                 group.security_group_rules.pop(rule_id, None)
 
         ip_permissions = self._normalize_ip_permissions(params)
+        print("[sg-debug] normalized ip_permissions =", ip_permissions)
         if ip_permissions:
             for perm in ip_permissions:
                 matched = False
@@ -812,6 +1089,7 @@ class SecurityGroup_Backend:
                 group.security_group_rules.pop(rule_id, None)
 
         ip_permissions = self._normalize_ip_permissions(params)
+        print("[sg-debug] normalized ip_permissions =", ip_permissions)
         if ip_permissions:
             for perm in ip_permissions:
                 matched = False
@@ -1263,14 +1541,22 @@ from ..utils import get_scalar, get_int, get_indexed_list, parse_filters, parse_
 from ..utils import is_error_response, serialize_error_response
 
 class securitygroup_RequestParser:
+    
+    @staticmethod
+    def _extract_prefixed_params(md: Dict[str, Any], prefix: str) -> Dict[str, Any]:
+        return {k: v for k, v in md.items() if isinstance(k, str) and k.startswith(prefix)}
+    
     @staticmethod
     def parse_authorize_security_group_egress_request(md: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "CidrIp": get_scalar(md, "CidrIp"),
+            "CidrIpv6": get_scalar(md, "CidrIpv6"),
+            "Description": get_scalar(md, "Description"),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
             "FromPort": get_int(md, "FromPort"),
             "GroupId": get_scalar(md, "GroupId"),
             "IpPermissions.N": get_indexed_list(md, "IpPermissions"),
+            "IpPermissionsRaw": securitygroup_RequestParser._extract_prefixed_params(md, "IpPermissions."),
             "IpProtocol": get_scalar(md, "IpProtocol"),
             "SourceSecurityGroupName": get_scalar(md, "SourceSecurityGroupName"),
             "SourceSecurityGroupOwnerId": get_scalar(md, "SourceSecurityGroupOwnerId"),
@@ -1282,11 +1568,14 @@ class securitygroup_RequestParser:
     def parse_authorize_security_group_ingress_request(md: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "CidrIp": get_scalar(md, "CidrIp"),
+            "CidrIpv6": get_scalar(md, "CidrIpv6"),
+            "Description": get_scalar(md, "Description"),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
             "FromPort": get_int(md, "FromPort"),
             "GroupId": get_scalar(md, "GroupId"),
             "GroupName": get_scalar(md, "GroupName"),
             "IpPermissions.N": get_indexed_list(md, "IpPermissions"),
+            "IpPermissionsRaw": securitygroup_RequestParser._extract_prefixed_params(md, "IpPermissions."),
             "IpProtocol": get_scalar(md, "IpProtocol"),
             "SourceSecurityGroupName": get_scalar(md, "SourceSecurityGroupName"),
             "SourceSecurityGroupOwnerId": get_scalar(md, "SourceSecurityGroupOwnerId"),
@@ -1345,10 +1634,12 @@ class securitygroup_RequestParser:
     def parse_revoke_security_group_egress_request(md: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "CidrIp": get_scalar(md, "CidrIp"),
+            "CidrIpv6": get_scalar(md, "CidrIpv6"),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
             "FromPort": get_int(md, "FromPort"),
             "GroupId": get_scalar(md, "GroupId"),
             "IpPermissions.N": get_indexed_list(md, "IpPermissions"),
+            "IpPermissionsRaw": securitygroup_RequestParser._extract_prefixed_params(md, "IpPermissions."),
             "IpProtocol": get_scalar(md, "IpProtocol"),
             "SecurityGroupRuleId.N": get_indexed_list(md, "SecurityGroupRuleId"),
             "SourceSecurityGroupName": get_scalar(md, "SourceSecurityGroupName"),
@@ -1360,11 +1651,13 @@ class securitygroup_RequestParser:
     def parse_revoke_security_group_ingress_request(md: Dict[str, Any]) -> Dict[str, Any]:
         return {
             "CidrIp": get_scalar(md, "CidrIp"),
+            "CidrIpv6": get_scalar(md, "CidrIpv6"),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
             "FromPort": get_int(md, "FromPort"),
             "GroupId": get_scalar(md, "GroupId"),
             "GroupName": get_scalar(md, "GroupName"),
             "IpPermissions.N": get_indexed_list(md, "IpPermissions"),
+            "IpPermissionsRaw": securitygroup_RequestParser._extract_prefixed_params(md, "IpPermissions."),
             "IpProtocol": get_scalar(md, "IpProtocol"),
             "SecurityGroupRuleId.N": get_indexed_list(md, "SecurityGroupRuleId"),
             "SourceSecurityGroupName": get_scalar(md, "SourceSecurityGroupName"),
@@ -1379,6 +1672,7 @@ class securitygroup_RequestParser:
             "GroupId": get_scalar(md, "GroupId"),
             "GroupName": get_scalar(md, "GroupName"),
             "IpPermissions.N": get_indexed_list(md, "IpPermissions"),
+            "IpPermissionsRaw": securitygroup_RequestParser._extract_prefixed_params(md, "IpPermissions."),
             "SecurityGroupRuleDescription.N": get_indexed_list(md, "SecurityGroupRuleDescription"),
         }
 
@@ -1389,6 +1683,7 @@ class securitygroup_RequestParser:
             "GroupId": get_scalar(md, "GroupId"),
             "GroupName": get_scalar(md, "GroupName"),
             "IpPermissions.N": get_indexed_list(md, "IpPermissions"),
+            "IpPermissionsRaw": securitygroup_RequestParser._extract_prefixed_params(md, "IpPermissions."),
             "SecurityGroupRuleDescription.N": get_indexed_list(md, "SecurityGroupRuleDescription"),
         }
 
@@ -1746,20 +2041,24 @@ class securitygroup_ResponseSerializer:
             _securityGroupInfo_key = "securityGroupInfo"
         elif "SecurityGroupInfo" in data:
             _securityGroupInfo_key = "SecurityGroupInfo"
+        
         if _securityGroupInfo_key:
             param_data = data[_securityGroupInfo_key]
             indent_str = "    " * 1
             if param_data:
-                xml_parts.append(f'{indent_str}<securityGroupInfoSet>')
+                xml_parts.append(f'{indent_str}<securityGroupInfo>')
                 for item in param_data:
                     xml_parts.append(f'{indent_str}    <item>')
                     xml_parts.extend(securitygroup_ResponseSerializer._serialize_nested_fields(item, 2))
                     xml_parts.append(f'{indent_str}    </item>')
-                xml_parts.append(f'{indent_str}</securityGroupInfoSet>')
+                xml_parts.append(f'{indent_str}</securityGroupInfo>')
             else:
-                xml_parts.append(f'{indent_str}<securityGroupInfoSet/>')
+                xml_parts.append(f'{indent_str}<securityGroupInfo/>')
+
         xml_parts.append(f'</DescribeSecurityGroupsResponse>')
-        return "\n".join(xml_parts)
+        xml = "\n".join(xml_parts)
+        print("[sg-describe-xml]", xml)
+        return xml
 
     @staticmethod
     def serialize_modify_security_group_rules_response(data: Dict[str, Any], request_id: str) -> str:

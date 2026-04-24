@@ -368,8 +368,8 @@ class ElasticNetworkInterface_Backend:
             if not sg:
                 return create_error_response("InvalidGroup.NotFound", f"The ID '{group_id}' does not exist")
             group_set.append({
-                "GroupId": group_id,
-                "GroupName": getattr(sg, "group_name", ""),
+                "groupId": group_id,
+                "groupName": getattr(sg, "group_name", ""),
             })
 
         tag_set: List[Dict[str, Any]] = []
@@ -996,8 +996,8 @@ class ElasticNetworkInterface_Backend:
                 if not sg:
                     return create_error_response("InvalidGroup.NotFound", f"The ID '{group_id}' does not exist")
                 group_set.append({
-                    "GroupId": group_id,
-                    "GroupName": getattr(sg, "group_name", ""),
+                    "groupId": group_id,
+                    "groupName": getattr(sg, "group_name", ""),
                 })
             network_interface.group_set = group_set
 
@@ -1378,6 +1378,27 @@ class elasticnetworkinterface_ResponseSerializer:
                 xml_parts.append(f'{indent}<{key}>{esc(str(value))}</{key}>')
         return xml_parts
 
+
+    @staticmethod
+    def _serialize_group_set(group_set: List[Dict[str, Any]], indent_level: int) -> List[str]:
+        xml_parts = []
+        indent = '    ' * indent_level
+        if group_set:
+            xml_parts.append(f'{indent}<groupSet>')
+            for item in group_set:
+                xml_parts.append(f'{indent}    <item>')
+                group_id = item.get("groupId") or item.get("GroupId") or ""
+                group_name = item.get("groupName") or item.get("GroupName") or ""
+                if group_id != "":
+                    xml_parts.append(f'{indent}        <groupId>{esc(str(group_id))}</groupId>')
+                if group_name != "":
+                    xml_parts.append(f'{indent}        <groupName>{esc(str(group_name))}</groupName>')
+                xml_parts.append(f'{indent}    </item>')
+            xml_parts.append(f'{indent}</groupSet>')
+        else:
+            xml_parts.append(f'{indent}<groupSet/>')
+        return xml_parts
+
     @staticmethod
     def serialize_assign_ipv6_addresses_response(data: Dict[str, Any], request_id: str) -> str:
         xml_parts = []
@@ -1517,6 +1538,26 @@ class elasticnetworkinterface_ResponseSerializer:
         return "\n".join(xml_parts)
 
     @staticmethod
+    def _serialize_group_set(group_set: List[Dict[str, Any]], indent_level: int) -> List[str]:
+        xml_parts = []
+        indent = '    ' * indent_level
+        if group_set:
+            xml_parts.append(f'{indent}<groupSet>')
+            for item in group_set:
+                xml_parts.append(f'{indent}    <item>')
+                group_id = item.get("groupId") or item.get("GroupId") or ""
+                group_name = item.get("groupName") or item.get("GroupName") or ""
+                if group_id != "":
+                    xml_parts.append(f'{indent}        <groupId>{esc(str(group_id))}</groupId>')
+                if group_name != "":
+                    xml_parts.append(f'{indent}        <groupName>{esc(str(group_name))}</groupName>')
+                xml_parts.append(f'{indent}    </item>')
+            xml_parts.append(f'{indent}</groupSet>')
+        else:
+            xml_parts.append(f'{indent}<groupSet/>')
+        return xml_parts
+
+    @staticmethod
     def serialize_create_network_interface_response(data: Dict[str, Any], request_id: str) -> str:
         xml_parts = []
         xml_parts.append(f'<CreateNetworkInterfaceResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">')
@@ -1541,10 +1582,44 @@ class elasticnetworkinterface_ResponseSerializer:
             param_data = data[_networkInterface_key]
             indent_str = "    " * 1
             xml_parts.append(f'{indent_str}<networkInterface>')
-            xml_parts.extend(elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(param_data, 2))
+            for key, value in param_data.items():
+                if key == "groupSet":
+                    xml_parts.extend(
+                        elasticnetworkinterface_ResponseSerializer._serialize_group_set(
+                            value, 2
+                        )
+                    )
+                elif value is None:
+                    continue
+                elif isinstance(value, dict):
+                    xml_parts.append(f'        <{key}>')
+                    xml_parts.extend(
+                        elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(
+                            value, 3
+                        )
+                    )
+                    xml_parts.append(f'        </{key}>')
+                elif isinstance(value, list):
+                    xml_parts.append(f'        <{key}>')
+                    for item in value:
+                        if isinstance(item, dict):
+                            xml_parts.append(f'            <item>')
+                            xml_parts.extend(
+                                elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(
+                                    item, 4
+                                )
+                            )
+                            xml_parts.append(f'            </item>')
+                        else:
+                            xml_parts.append(f'            <item>{esc(str(item))}</item>')
+                    xml_parts.append(f'        </{key}>')
+                elif isinstance(value, bool):
+                    xml_parts.append(f'        <{key}>{str(value).lower()}</{key}>')
+                else:
+                    xml_parts.append(f'        <{key}>{esc(str(value))}</{key}>')
             xml_parts.append(f'{indent_str}</networkInterface>')
         xml_parts.append(f'</CreateNetworkInterfaceResponse>')
-        return "\n".join(xml_parts)
+        return "".join(xml_parts)
 
     @staticmethod
     def serialize_create_network_interface_permission_response(data: Dict[str, Any], request_id: str) -> str:
@@ -1657,16 +1732,11 @@ class elasticnetworkinterface_ResponseSerializer:
             _groupSet_key = "Groups"
         if _groupSet_key:
             param_data = data[_groupSet_key]
-            indent_str = "    " * 1
-            if param_data:
-                xml_parts.append(f'{indent_str}<groupSet>')
-                for item in param_data:
-                    xml_parts.append(f'{indent_str}    <item>')
-                    xml_parts.extend(elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(item, 2))
-                    xml_parts.append(f'{indent_str}    </item>')
-                xml_parts.append(f'{indent_str}</groupSet>')
-            else:
-                xml_parts.append(f'{indent_str}<groupSet/>')
+            xml_parts.extend(
+                elasticnetworkinterface_ResponseSerializer._serialize_group_set(
+                    param_data, 1
+                )
+            )
         # Serialize networkInterfaceId
         _networkInterfaceId_key = None
         if "networkInterfaceId" in data:
@@ -1690,7 +1760,7 @@ class elasticnetworkinterface_ResponseSerializer:
             xml_parts.extend(elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(param_data, 2))
             xml_parts.append(f'{indent_str}</sourceDestCheck>')
         xml_parts.append(f'</DescribeNetworkInterfaceAttributeResponse>')
-        return "\n".join(xml_parts)
+        return "".join(xml_parts)
 
     @staticmethod
     def serialize_describe_network_interface_permissions_response(data: Dict[str, Any], request_id: str) -> str:
@@ -1748,7 +1818,43 @@ class elasticnetworkinterface_ResponseSerializer:
                 xml_parts.append(f'{indent_str}<networkInterfaceSet>')
                 for item in param_data:
                     xml_parts.append(f'{indent_str}    <item>')
-                    xml_parts.extend(elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(item, 2))
+                    for key, value in item.items():
+                        if key == "groupSet":
+                            xml_parts.extend(
+                                elasticnetworkinterface_ResponseSerializer._serialize_group_set(
+                                    value, 3
+                                )
+                            )
+                        elif value is None:
+                            continue
+                        elif isinstance(value, dict):
+                            xml_parts.append(f'            <{key}>')
+                            xml_parts.extend(
+                                elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(
+                                    value, 4
+                                )
+                            )
+                            xml_parts.append(f'            </{key}>')
+                        elif isinstance(value, list):
+                            xml_parts.append(f'            <{key}>')
+                            for sub_item in value:
+                                if isinstance(sub_item, dict):
+                                    xml_parts.append(f'                <item>')
+                                    xml_parts.extend(
+                                        elasticnetworkinterface_ResponseSerializer._serialize_nested_fields(
+                                            sub_item, 5
+                                        )
+                                    )
+                                    xml_parts.append(f'                </item>')
+                                else:
+                                    xml_parts.append(
+                                        f'                <item>{esc(str(sub_item))}</item>'
+                                    )
+                            xml_parts.append(f'            </{key}>')
+                        elif isinstance(value, bool):
+                            xml_parts.append(f'            <{key}>{str(value).lower()}</{key}>')
+                        else:
+                            xml_parts.append(f'            <{key}>{esc(str(value))}</{key}>')
                     xml_parts.append(f'{indent_str}    </item>')
                 xml_parts.append(f'{indent_str}</networkInterfaceSet>')
             else:
@@ -1764,7 +1870,7 @@ class elasticnetworkinterface_ResponseSerializer:
             indent_str = "    " * 1
             xml_parts.append(f'{indent_str}<nextToken>{esc(str(param_data))}</nextToken>')
         xml_parts.append(f'</DescribeNetworkInterfacesResponse>')
-        return "\n".join(xml_parts)
+        return "".join(xml_parts)
 
     @staticmethod
     def serialize_detach_network_interface_response(data: Dict[str, Any], request_id: str) -> str:
