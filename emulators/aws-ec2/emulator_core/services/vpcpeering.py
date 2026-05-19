@@ -1,5 +1,5 @@
 from typing import Dict, List, Any, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 import uuid
@@ -189,7 +189,7 @@ class VpcPeering_Backend:
 
         resource = VpcPeering(
             accepter_vpc_info=accepter_info,
-            expiration_time="",
+            expiration_time=(datetime.now(timezone.utc) + timedelta(days=7)).isoformat().replace("+00:00", "Z"),
             requester_vpc_info=requester_info,
             status=status,
             tag_set=tag_set,
@@ -661,4 +661,3 @@ class vpcpeering_ResponseSerializer:
         if action not in serializers:
             raise ValueError(f"Unknown action: {action}")
         return serializers[action](data, request_id)
-

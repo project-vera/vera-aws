@@ -118,7 +118,7 @@ class DhcpOptions_Backend:
                 "Missing required parameter: DhcpConfiguration.N",
             )
 
-        dhcp_options_id = self._generate_id("dhcp")
+        dhcp_options_id = self._generate_id("dopt")
         tag_set: List[Dict[str, Any]] = []
         for spec in params.get("TagSpecification.N", []) or []:
             tag_set.extend(spec.get("Tags", []) or [])
@@ -132,7 +132,7 @@ class DhcpOptions_Backend:
         self.resources[dhcp_options_id] = resource
 
         return {
-            'dhcpOptions': [resource.to_dict()],
+            'dhcpOptions': resource.to_dict(),
             }
 
     def DeleteDhcpOptions(self, params: Dict[str, Any]):
@@ -211,8 +211,23 @@ class dhcpoptions_RequestParser:
 
     @staticmethod
     def parse_create_dhcp_options_request(md: Dict[str, Any]) -> Dict[str, Any]:
+        def parse_dhcp_configurations() -> List[Dict[str, Any]]:
+            configurations: List[Dict[str, Any]] = []
+            index = 1
+            while True:
+                key = get_scalar(md, f"DhcpConfiguration.{index}.Key")
+                if key is None:
+                    break
+                values = get_indexed_list(md, f"DhcpConfiguration.{index}.Value")
+                configurations.append({
+                    "key": key,
+                    "valueSet": [{"value": value} for value in values],
+                })
+                index += 1
+            return configurations
+
         return {
-            "DhcpConfiguration.N": get_indexed_list(md, "DhcpConfiguration"),
+            "DhcpConfiguration.N": parse_dhcp_configurations(),
             "DryRun": str2bool(get_scalar(md, "DryRun")),
             "TagSpecification.N": parse_tags(md, "TagSpecification"),
         }
@@ -345,15 +360,9 @@ class dhcpoptions_ResponseSerializer:
         if _dhcpOptions_key:
             param_data = data[_dhcpOptions_key]
             indent_str = "    " * 1
-            if param_data:
-                xml_parts.append(f'{indent_str}<dhcpOptionsSet>')
-                for item in param_data:
-                    xml_parts.append(f'{indent_str}    <item>')
-                    xml_parts.extend(dhcpoptions_ResponseSerializer._serialize_nested_fields(item, 2))
-                    xml_parts.append(f'{indent_str}    </item>')
-                xml_parts.append(f'{indent_str}</dhcpOptionsSet>')
-            else:
-                xml_parts.append(f'{indent_str}<dhcpOptionsSet/>')
+            xml_parts.append(f'{indent_str}<dhcpOptions>')
+            xml_parts.extend(dhcpoptions_ResponseSerializer._serialize_nested_fields(param_data, 2))
+            xml_parts.append(f'{indent_str}</dhcpOptions>')
         xml_parts.append(f'</CreateDhcpOptionsResponse>')
         return "\n".join(xml_parts)
 
@@ -428,4 +437,3 @@ class dhcpoptions_ResponseSerializer:
         if action not in serializers:
             raise ValueError(f"Unknown action: {action}")
         return serializers[action](data, request_id)
-

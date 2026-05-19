@@ -1,6 +1,7 @@
 from typing import Dict, Any, List, Union, Optional
 from werkzeug.datastructures import MultiDict
 import html
+import fnmatch
 
 # ==================== TYPE ALIASES ====================
 # These help clarify what types functions return
@@ -356,6 +357,13 @@ def serialize_error_response(error_data: ErrorResponse, request_id: str) -> str:
 </Response>"""
 
 
+def _matches_filter_value(actual: str, expected_values: List[str]) -> bool:
+    for expected in expected_values:
+        if fnmatch.fnmatchcase(actual, str(expected)):
+            return True
+    return False
+
+
 def apply_filters(resources: List[Any], filters: List[Filter]) -> List[Any]:
     """
     Apply AWS-style filters to a list of resource objects or dicts.
@@ -405,7 +413,7 @@ def apply_filters(resources: List[Any], filters: List[Filter]) -> List[Any]:
                     if isinstance(tag, dict) and tag.get("Key") == tag_key:
                         tag_value = tag.get("Value", "")
                         break
-                if tag_value is None or tag_value not in values:
+                if tag_value is None or not _matches_filter_value(str(tag_value), values):
                     match = False
                     break
                 continue
@@ -432,14 +440,14 @@ def apply_filters(resources: List[Any], filters: List[Filter]) -> List[Any]:
             elif isinstance(obj, list):
                 # List field: pass if any element matches any value
                 list_strs = [str(item) for item in obj]
-                if not any(v in list_strs for v in values):
+                if not any(_matches_filter_value(item, values) for item in list_strs):
                     match = False
                     break
                 continue
             else:
                 val_str = str(obj)
 
-            if val_str not in values:
+            if not _matches_filter_value(val_str, values):
                 match = False
                 break
 

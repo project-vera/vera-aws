@@ -151,6 +151,47 @@ class Ami_Backend:
     def __init__(self):
         self.state = EC2State.get()
         self.resources = self.state.amis  # alias to shared store
+        self._ensure_default_images()
+
+    def _ensure_default_images(self) -> None:
+        if self.resources:
+            return
+
+        amazon_linux_2 = Ami(
+            image_id="ami-0f9fc25dd2506cf6d",
+            owner_id="137112412989",
+            image_owner_id="137112412989",
+            image_owner_alias="amazon",
+            name="amzn2-ami-hvm-2.0.20240109.0-x86_64-gp2",
+            description="Amazon Linux 2 AMI (HVM), SSD Volume Type",
+            state="available",
+            image_state="available",
+            image_type="machine",
+            architecture="x86_64",
+            creation_date="2024-01-09T00:00:00.000Z",
+            is_public=True,
+            image_location="amazon/amzn2-ami-hvm-2.0.20240109.0-x86_64-gp2",
+            platform_details="Linux/UNIX",
+            root_device_name="/dev/xvda",
+            root_device_type="ebs",
+            virtualization_type="hvm",
+            ena_support=True,
+            sriov_net_support="simple",
+            hypervisor="xen",
+            block_device_mappings=[
+                {
+                    "deviceName": "/dev/xvda",
+                    "ebs": {
+                        "deleteOnTermination": True,
+                        "encrypted": False,
+                        "snapshotId": "snap-0f9fc25dd2506cf6d",
+                        "volumeSize": 8,
+                        "volumeType": "gp2",
+                    },
+                }
+            ],
+        )
+        self.resources[amazon_linux_2.image_id] = amazon_linux_2
 
     def _utc_now(self) -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -635,7 +676,13 @@ class Ami_Backend:
 
         owners = params.get("Owner.N", []) or []
         if owners:
-            resources = [image for image in resources if image.owner_id in owners or image.image_owner_id in owners]
+            resources = [
+                image
+                for image in resources
+                if image.owner_id in owners
+                or image.image_owner_id in owners
+                or image.image_owner_alias in owners
+            ]
 
         include_disabled = str2bool(params.get("IncludeDisabled"))
         include_deprecated = str2bool(params.get("IncludeDeprecated"))
@@ -3111,4 +3158,3 @@ class ami_ResponseSerializer:
         if action not in serializers:
             raise ValueError(f"Unknown action: {action}")
         return serializers[action](data, request_id)
-

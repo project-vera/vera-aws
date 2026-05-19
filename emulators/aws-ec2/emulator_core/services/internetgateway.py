@@ -395,7 +395,7 @@ class InternetGateway_Backend:
             )
 
         resource.vpc_id = None
-        resource.attachment_set = [{"state": "detached", "vpcId": vpc_id}]
+        resource.attachment_set = []
 
         if hasattr(vpc, "internet_gateway_ids") and internet_gateway_id in vpc.internet_gateway_ids:
             vpc.internet_gateway_ids.remove(internet_gateway_id)
@@ -778,4 +778,3 @@ class internetgateway_ResponseSerializer:
         if action not in serializers:
             raise ValueError(f"Unknown action: {action}")
         return serializers[action](data, request_id)
-

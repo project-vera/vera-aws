@@ -387,27 +387,21 @@ class Vpc_Backend:
             return create_error_response("InvalidVpcID.NotFound", f"The ID '{vpc_id}' does not exist")
 
         supported_attributes = {
-            "enableDnsSupport": vpc.enable_dns_support,
-            "enableDnsHostnames": vpc.enable_dns_hostnames,
-            "enableNetworkAddressUsageMetrics": vpc.enable_network_address_usage_metrics,
+            "enableDnsSupport": ("enableDnsSupport", vpc.enable_dns_support),
+            "enableDnsHostnames": ("enableDnsHostnames", vpc.enable_dns_hostnames),
+            "enableNetworkAddressUsageMetrics": (
+                "enableNetworkAddressUsageMetrics",
+                vpc.enable_network_address_usage_metrics,
+            ),
         }
         if attribute not in supported_attributes:
             return create_error_response("InvalidParameterValue", f"Invalid attribute '{attribute}'")
 
+        response_key, value = supported_attributes[attribute]
         return {
-            'enableDnsHostnames': [
-                {
-                    'Value': vpc.enable_dns_hostnames,
-                }
-            ],
-            'enableDnsSupport': {
-                'Value': vpc.enable_dns_support,
+            response_key: {
+                'value': value,
                 },
-            'enableNetworkAddressUsageMetrics': [
-                {
-                    'Value': vpc.enable_network_address_usage_metrics,
-                }
-            ],
             'vpcId': vpc.vpc_id,
             }
 
@@ -429,7 +423,32 @@ class Vpc_Backend:
         else:
             resources = list(self.resources.values())
 
-        resources = apply_filters(resources, params.get("Filter.N", []))
+        filters = params.get("Filter.N", []) or []
+        special_filter_names = {
+            "cidr-block-association.association-id",
+            "ipv6-cidr-block-association.association-id",
+        }
+        for resource_filter in filters:
+            name = resource_filter.get("Name", "")
+            values = set(resource_filter.get("Values", []) or [])
+            if name not in special_filter_names or not values:
+                continue
+            association_attr = (
+                "ipv6_cidr_block_association_set"
+                if name.startswith("ipv6-")
+                else "cidr_block_association_set"
+            )
+            resources = [
+                resource
+                for resource in resources
+                if any(
+                    str(association.get("associationId", "")) in values
+                    for association in getattr(resource, association_attr, []) or []
+                    if isinstance(association, dict)
+                )
+            ]
+        normal_filters = [f for f in filters if f.get("Name", "") not in special_filter_names]
+        resources = apply_filters(resources, normal_filters)
         vpc_set = [resource.to_dict() for resource in resources[:max_results]]
 
         return {
@@ -648,9 +667,12 @@ class vpc_RequestParser:
     @staticmethod
     def parse_modify_vpc_attribute_request(md: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "EnableDnsHostnames": get_scalar(md, "EnableDnsHostnames"),
-            "EnableDnsSupport": get_scalar(md, "EnableDnsSupport"),
-            "EnableNetworkAddressUsageMetrics": get_scalar(md, "EnableNetworkAddressUsageMetrics"),
+            "EnableDnsHostnames": get_scalar(md, "EnableDnsHostnames")
+                or get_scalar(md, "EnableDnsHostnames.Value"),
+            "EnableDnsSupport": get_scalar(md, "EnableDnsSupport")
+                or get_scalar(md, "EnableDnsSupport.Value"),
+            "EnableNetworkAddressUsageMetrics": get_scalar(md, "EnableNetworkAddressUsageMetrics")
+                or get_scalar(md, "EnableNetworkAddressUsageMetrics.Value"),
             "VpcId": get_scalar(md, "VpcId"),
         }
 
@@ -848,57 +870,39 @@ class vpc_ResponseSerializer:
 
     @staticmethod
     def serialize_describe_vpc_attribute_response(data: Dict[str, Any], request_id: str) -> str:
+        def append_attribute(xml_parts: List[str], data_key: str, tag_name: str) -> None:
+            if data_key not in data:
+                return
+            param_data = data[data_key]
+            if isinstance(param_data, list):
+                param_data = param_data[0] if param_data else {}
+            if isinstance(param_data, dict) and "Value" in param_data and "value" not in param_data:
+                param_data = {"value": param_data["Value"]}
+            indent_str = "    " * 1
+            xml_parts.append(f'{indent_str}<{tag_name}>')
+            if isinstance(param_data, dict):
+                xml_parts.extend(vpc_ResponseSerializer._serialize_nested_fields(param_data, 2))
+            elif param_data is not None:
+                xml_parts.append(f'{indent_str}    <value>{str(param_data).lower()}</value>')
+            xml_parts.append(f'{indent_str}</{tag_name}>')
+
         xml_parts = []
         xml_parts.append(f'<DescribeVpcAttributeResponse xmlns="http://ec2.amazonaws.com/doc/2016-11-15/">')
         xml_parts.append(f'    <requestId>{esc(request_id)}</requestId>')
-        # Serialize enableDnsHostnames
-        _enableDnsHostnames_key = None
-        if "enableDnsHostnames" in data:
-            _enableDnsHostnames_key = "enableDnsHostnames"
-        elif "EnableDnsHostnames" in data:
-            _enableDnsHostnames_key = "EnableDnsHostnames"
-        if _enableDnsHostnames_key:
-            param_data = data[_enableDnsHostnames_key]
-            indent_str = "    " * 1
-            if param_data:
-                xml_parts.append(f'{indent_str}<enableDnsHostnamesSet>')
-                for item in param_data:
-                    xml_parts.append(f'{indent_str}    <item>')
-                    xml_parts.extend(vpc_ResponseSerializer._serialize_nested_fields(item, 2))
-                    xml_parts.append(f'{indent_str}    </item>')
-                xml_parts.append(f'{indent_str}</enableDnsHostnamesSet>')
-            else:
-                xml_parts.append(f'{indent_str}<enableDnsHostnamesSet/>')
-        # Serialize enableDnsSupport
-        _enableDnsSupport_key = None
-        if "enableDnsSupport" in data:
-            _enableDnsSupport_key = "enableDnsSupport"
-        elif "EnableDnsSupport" in data:
-            _enableDnsSupport_key = "EnableDnsSupport"
-        if _enableDnsSupport_key:
-            param_data = data[_enableDnsSupport_key]
-            indent_str = "    " * 1
-            xml_parts.append(f'{indent_str}<enableDnsSupport>')
-            xml_parts.extend(vpc_ResponseSerializer._serialize_nested_fields(param_data, 2))
-            xml_parts.append(f'{indent_str}</enableDnsSupport>')
-        # Serialize enableNetworkAddressUsageMetrics
-        _enableNetworkAddressUsageMetrics_key = None
-        if "enableNetworkAddressUsageMetrics" in data:
-            _enableNetworkAddressUsageMetrics_key = "enableNetworkAddressUsageMetrics"
-        elif "EnableNetworkAddressUsageMetrics" in data:
-            _enableNetworkAddressUsageMetrics_key = "EnableNetworkAddressUsageMetrics"
-        if _enableNetworkAddressUsageMetrics_key:
-            param_data = data[_enableNetworkAddressUsageMetrics_key]
-            indent_str = "    " * 1
-            if param_data:
-                xml_parts.append(f'{indent_str}<enableNetworkAddressUsageMetricsSet>')
-                for item in param_data:
-                    xml_parts.append(f'{indent_str}    <item>')
-                    xml_parts.extend(vpc_ResponseSerializer._serialize_nested_fields(item, 2))
-                    xml_parts.append(f'{indent_str}    </item>')
-                xml_parts.append(f'{indent_str}</enableNetworkAddressUsageMetricsSet>')
-            else:
-                xml_parts.append(f'{indent_str}<enableNetworkAddressUsageMetricsSet/>')
+        append_attribute(xml_parts, "enableDnsHostnames", "enableDnsHostnames")
+        append_attribute(xml_parts, "EnableDnsHostnames", "enableDnsHostnames")
+        append_attribute(xml_parts, "enableDnsSupport", "enableDnsSupport")
+        append_attribute(xml_parts, "EnableDnsSupport", "enableDnsSupport")
+        append_attribute(
+            xml_parts,
+            "enableNetworkAddressUsageMetrics",
+            "enableNetworkAddressUsageMetrics",
+        )
+        append_attribute(
+            xml_parts,
+            "EnableNetworkAddressUsageMetrics",
+            "enableNetworkAddressUsageMetrics",
+        )
         # Serialize vpcId
         _vpcId_key = None
         if "vpcId" in data:
@@ -1048,4 +1052,3 @@ class vpc_ResponseSerializer:
         if action not in serializers:
             raise ValueError(f"Unknown action: {action}")
         return serializers[action](data, request_id)
-
